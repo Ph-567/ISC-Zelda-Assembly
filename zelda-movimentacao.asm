@@ -15,21 +15,27 @@
 ##
 #
 #s0 = frame atual (0 ou 1) 
-#s1 = inversão de frames
-#s2 = sprite de direção do link (cima/baixo/direita/esquerda)
-#s3 = flag de animação do link (pra alternar os pés)
+#s1 = inversï¿½o de frames
+#s2 = sprite de direï¿½ï¿½o do link (cima/baixo/direita/esquerda)
+#s3 = flag de animaï¿½ï¿½o do link (pra alternar os pï¿½s)
 
 .data
 	.include "sprites/tile.s"
 	.include "sprites/mapa1.s"
 	.include "sprites/link.s"
+	.include "sprites/espada.s"
+	.include "sprites/espada2.s"
 
 CHAR_POS:	.half 48,16			# x, y
 OLD_CHAR_POS:	.half 48,16			# x, y
 
+SWORD_POS:	.half 80,48 	#posica espada mapa
 
-#Pra funcionar a colisão, precisa fazer um mapa de colisão 20x15. Cada valor desse mapa representa um tile 16x16
-#1 - tem obstáculo
+HAS_SWORD:	.byte 0		# Flag de estado: 0 = No mapa, 1 = JÃ¡ foi pega
+
+
+#Pra funcionar a colisï¿½o, precisa fazer um mapa de colisï¿½o 20x15. Cada valor desse mapa representa um tile 16x16
+#1 - tem obstï¿½culo
 #0 - n tem
 mapa1_colisao:
 
@@ -53,7 +59,8 @@ mapa1_colisao:
 .text
 
 
-MAIN: 
+MAIN:   #mapa
+
 	la a0, mapa1
 	li a1, 0
 	li a2, 0
@@ -62,14 +69,33 @@ MAIN:
 	li a3,1				# frame = 1
 	call PRINT			# imprime o sprite
 	
+	#espada
+	
+	la t0, SWORD_POS
+	la a0, espada			# Carrega o sprite da espada
+	lh a1, 0(t0)			# Carrega x da espada
+	
+	addi a1, a1, 4			#soma-se 4 para centralizar o sprite da espada de tamanho 8, 16 
+	
+	lh a2, 2(t0)			# Carrega y da espada
+	li a3, 0			# no frame 0
+	call PRINT
+	li a3, 1			# no frame 1
+	call PRINT
+	
+	#
+	
 	li s0, 0			#vai ser usado para verificar o frame
-	la s2, baixo2
-	li s3,0
+	la s2, baixo2			#sprite incial (link olhando para baixo)
+	li s3,0				#flag de animaÃ§Ã£o (pÃ©s do link)
+	
 
 GAME_LOOP: 
 
 	call KEY_SELECT
 	xori s0, s0, 1			#alterna entre 0 e 1 frame, visto que xor 0, 1 = 1 e xor 1, 1 = 0. Pinta primeiro em 1
+	
+	call CHECAR_PEGOU_ESPADA
 	
 	la t0, CHAR_POS			#carrega para t0 a posicao do personagem
 	mv a0,s2			#passa o valor s2 (sprite do link) pra a0, que vai ser argumento pro print	
@@ -82,7 +108,7 @@ GAME_LOOP:
 	sw s0,0(t2)		# coloca no endereco que decide o que mostra o frame s0
 	
 	#limpeza do frame invisivel (para apagar o rastro)
-	#limpa-se o frame invisivel, pois no proximo loop, quando printar, o loop repetirá e terá um frame zerado sem o rastro.
+	#limpa-se o frame invisivel, pois no proximo loop, quando printar, o loop repetirï¿½ e terï¿½ um frame zerado sem o rastro.
 	
 	xori s1, s0, 1 			#processo de inversao do frame visivel e salvar o inverso em s1
 	
@@ -99,7 +125,7 @@ GAME_LOOP:
 KEY_SELECT: li t1,0xFF200000		# carrega o endere o de controle do KDMMIO 
 LOOP: 	lw t0,0(t1)			# Le bit de Controle Teclado # endereco da flag tecla apertada 
    	andi t0,t0,0x0001		# mascara o bit menos significativo
-   					# (lê do endereco controle de teclado uma flag(0 = tecla apertada | 1 = tecla apertada)			
+   					# (lï¿½ do endereco controle de teclado uma flag(0 = tecla apertada | 1 = tecla apertada)			
    	beq t0,zero,FIM_LOOP		# n o tem tecla pressionada ent o volta ao loop
    	lw t2,4(t1)			# le o valor da tecla (no endereco 0xFF200004) #endereco dos valores ASCII
   	sw t2,12(t1)  			# escreve a tecla pressionada no display (no endereco 0xFF200012) #enderco do display
@@ -118,6 +144,10 @@ LOOP: 	lw t0,0(t1)			# Le bit de Controle Teclado # endereco da flag tecla apert
 	
 	li t0,'d'
 	beq t2,t0,CHAR_DIR		# se tecla pressionada for 'd', chama CHAR_DIR
+	
+	#NOVA TECLA (B) para fazer a espada bater
+	
+	
 
 	
 
@@ -125,31 +155,31 @@ FIM_LOOP:	ret
   	
 CHAR_DIR: 
 	addi sp, sp, -4 #usa sp(stack pointer) pra guardar o valor de ra na pilha temporariamente
-	sw ra,0(sp) #precisa fazer isso pq o jal muda o endereço de retorno(ra), então ele não retorna pro loop se não salvar
+	sw ra,0(sp) #precisa fazer isso pq o jal muda o endereï¿½o de retorno(ra), entï¿½o ele nï¿½o retorna pro loop se nï¿½o salvar
 	
-	xori s3, s3, 1	#inverte o s3, que decide qual sprite do link vai usar (muda o pé)		
+	xori s3, s3, 1	#inverte o s3, que decide qual sprite do link vai usar (muda o pï¿½)		
 	la t0, CHAR_POS  #carrega o endereco da posicao 
 	lh t1, 0(t0) #carrega o valor x posicao 
-	lh t2, 2(t0) #pega a posicao atual
+	lh t2, 2(t0) #pega o valor y posicao 
 	
 	
-	#Procedimento pra checar colisão
+	#Procedimento pra checar colisï¿½o
 	
-	addi t3, t1, 16	#t3 vai guardar o valor x do endereço previsto depois da movimentação t1(x) + 16
+	addi t3, t1, 16	#t3 vai guardar o valor x do endereï¿½o previsto depois da movimentaï¿½ï¿½o t1(x) + 16
 	
-	srai t3, t3, 4 #divide o x previsto por 16, pra ficar compatível com o mapa de colisão
+	srai t3, t3, 4 #divide o x previsto por 16, pra ficar compatï¿½vel com o mapa de colisï¿½o
 	srai t4, t2, 4 #divide o y previsto por 16 
 	
-	jal CHECAR_COLISAO #a função vai retornar t5 = 1 se tiver obstáculo no endereço previsto e t5 = 0 senão
+	jal CHECAR_COLISAO #a funï¿½ï¿½o vai retornar t5 = 1 se tiver obstï¿½culo no endereï¿½o previsto e t5 = 0 senï¿½o
 	
-	lw ra, 0(sp) #volta o ra pro valor antigo, assim o endereço de retorno volta a ser o loop
+	lw ra, 0(sp) #volta o ra pro valor antigo, assim o endereï¿½o de retorno volta a ser o loop
 	addi sp, sp, 4 #reseta o sp
 	
 	li t6, 1 
-	beq t5, t6, COLISAO #se t6 = 1 teve colisão
+	beq t5, t6, COLISAO #se t6 = 1 teve colisï¿½o
 	
 	
-	#Não teve colisão, então carrega as coisas pra printar o personagem
+	#Nï¿½o teve colisï¿½o, entï¿½o carrega as coisas pra printar o personagem
 	
 	la t0, CHAR_POS #carrega o endereco da posicao
 	la t1, OLD_CHAR_POS #carrega o endereco da posicao passada
@@ -159,7 +189,7 @@ CHAR_DIR:
 	addi t1, t1, 16 #aumenta o valor x (para indicar o movimento)
 	sh t1, 0(t0) #faz o store do valor x novo
 	
-	beq s3, zero, p1d #s3 decide qual sprite do link vai ser printado (muda a posição dos pés)
+	beq s3, zero, p1d #s3 decide qual sprite do link vai ser printado (muda a posiï¿½ï¿½o dos pï¿½s)
 	la s2,direita2 
 	ret
 	p1d:	la s2, direita
@@ -167,31 +197,31 @@ CHAR_DIR:
 
 CHAR_ESQ: 
 	addi sp, sp, -4 #usa sp(stack pointer) pra guardar o valor de ra na pilha temporariamente
-	sw ra,0(sp) #precisa fazer isso pq o jal muda o endereço de retorno(ra), então ele não retorna pro loop se não salvar
+	sw ra,0(sp) #precisa fazer isso pq o jal muda o endereï¿½o de retorno(ra), entï¿½o ele nï¿½o retorna pro loop se nï¿½o salvar
 	
-	xori s3, s3, 1	#inverte o s3, que decide qual sprite do link vai usar (muda o pé)	
+	xori s3, s3, 1	#inverte o s3, que decide qual sprite do link vai usar (muda o pï¿½)	
 	la t0, CHAR_POS  #carrega o endereco da posicao 	
 	lh t1, 0(t0) #carrega o valor x posicao 
 	lh t2, 2(t0) #pega a posicao atual
 	
 	
-	#Procedimento pra checar colisão
+	#Procedimento pra checar colisï¿½o
 	
-	addi t3, t1, -16 #t3 vai guardar o valor x do endereço previsto depois da movimentação t1(x) - 16
+	addi t3, t1, -16 #t3 vai guardar o valor x do endereï¿½o previsto depois da movimentaï¿½ï¿½o t1(x) - 16
 	
-	srai t3, t3, 4 #divide o x previsto por 16, pra ficar compatível com o mapa de colisão
+	srai t3, t3, 4 #divide o x previsto por 16, pra ficar compatï¿½vel com o mapa de colisï¿½o
 	srai t4, t2, 4 #divide o y previsto por 16
 	
-	jal CHECAR_COLISAO #a função vai retornar t5 = 1 se tiver obstáculo no endereço previsto e t5 = 0 senão
+	jal CHECAR_COLISAO #a funï¿½ï¿½o vai retornar t5 = 1 se tiver obstï¿½culo no endereï¿½o previsto e t5 = 0 senï¿½o
 	
-	lw ra, 0(sp) #volta o ra pro valor antigo, assim o endereço de retorno volta a ser o loop
+	lw ra, 0(sp) #volta o ra pro valor antigo, assim o endereï¿½o de retorno volta a ser o loop
 	addi sp, sp, 4 #reseta o sp
 	
 	li t6, 1
-	beq t5, t6, COLISAO #se t6 = 1 teve colisão
+	beq t5, t6, COLISAO #se t6 = 1 teve colisï¿½o
 	
 	
-	#Não teve colisão, então carrega as coisas pra printar o personagem
+	#Nï¿½o teve colisï¿½o, entï¿½o carrega as coisas pra printar o personagem
 	
 	la t0, CHAR_POS #carrega o endereco da posicao
 	la t1, OLD_CHAR_POS #carrega o endereco da posicao passada
@@ -201,7 +231,7 @@ CHAR_ESQ:
 	addi t1, t1, -16 #aumenta o valor x (para indicar o movimento)
 	sh t1, 0(t0) #faz o store do valor x novo
 	
-	beq s3, zero, p1e #s3 decide qual sprite do link vai ser printado (muda a posição dos pés)
+	beq s3, zero, p1e #s3 decide qual sprite do link vai ser printado (muda a posiï¿½ï¿½o dos pï¿½s)
 	la s2,esquerda2
 	ret
 	p1e:	la s2, esquerda
@@ -210,30 +240,30 @@ CHAR_ESQ:
 		
 CHAR_CIMA:
 	addi sp, sp, -4 #usa sp(stack pointer) pra guardar o valor de ra na pilha temporariamente
-	sw ra,0(sp) #precisa fazer isso pq o jal muda o endereço de retorno(ra), então ele não retorna pro loop se não salvar
+	sw ra,0(sp) #precisa fazer isso pq o jal muda o endereï¿½o de retorno(ra), entï¿½o ele nï¿½o retorna pro loop se nï¿½o salvar
 	 
-	xori s3, s3, 1	#inverte o s3, que decide qual sprite do link vai usar (muda o pé)		
+	xori s3, s3, 1	#inverte o s3, que decide qual sprite do link vai usar (muda o pï¿½)		
 	la t0, CHAR_POS  #carrega o endereco da posicao 	
 	lh t1, 0(t0) #carrega o valor x posicao 
 	lh t2, 2(t0) #pega a posicao atual
 	
-	addi t4, t2, -16 #t4 vai guardar o valor x do endereço previsto depois da movimentação t2(y) - 16	
+	addi t4, t2, -16 #t4 vai guardar o valor x do endereï¿½o previsto depois da movimentaï¿½ï¿½o t2(y) - 16	
 	
-	srai t4, t4, 4 #divide o y previsto por 16, pra ficar compatível com o mapa de colisão
+	srai t4, t4, 4 #divide o y previsto por 16, pra ficar compatï¿½vel com o mapa de colisï¿½o
 	srai t3, t1, 4 #divide o x previsto por 16
 	
 	
-	#Procedimento pra checar colisão
+	#Procedimento pra checar colisï¿½o
 	
-	jal CHECAR_COLISAO #a função vai retornar t5 = 1 se tiver obstáculo no endereço previsto e t5 = 0 senão
+	jal CHECAR_COLISAO #a funï¿½ï¿½o vai retornar t5 = 1 se tiver obstï¿½culo no endereï¿½o previsto e t5 = 0 senï¿½o
 	
-	lw ra, 0(sp) #volta o ra pro valor antigo, assim o endereço de retorno volta a ser o loop
+	lw ra, 0(sp) #volta o ra pro valor antigo, assim o endereï¿½o de retorno volta a ser o loop
 	addi sp, sp, 4 #reseta o sp
 	
 	li t6, 1
-	beq t5, t6, COLISAO #se t6 = 1 teve colisão
+	beq t5, t6, COLISAO #se t6 = 1 teve colisï¿½o
 	
-	#Não teve colisão, então carrega as coisas pra printar o personagem
+	#Nï¿½o teve colisï¿½o, entï¿½o carrega as coisas pra printar o personagem
 	
 	la t0, CHAR_POS #carrega o endereco da posicao
 	la t1, OLD_CHAR_POS #carrega o endereco da posicao passada
@@ -243,7 +273,7 @@ CHAR_CIMA:
 	addi t1, t1, -16 #aumenta o valor x (para indicar o movimento)
 	sh t1, 2(t0) #faz o store do valor x novo
 	
-	beq s3, zero, p1c #s3 decide qual sprite do link vai ser printado (muda a posição dos pés)
+	beq s3, zero, p1c #s3 decide qual sprite do link vai ser printado (muda a posiï¿½ï¿½o dos pï¿½s)
 	la s2,cima2
 	ret
 	p1c:	la s2, cima
@@ -251,30 +281,30 @@ CHAR_CIMA:
 	
 CHAR_BAIXO: 
 	addi sp, sp, -4 #usa sp(stack pointer) pra guardar o valor de ra na pilha temporariamente
-	sw ra,0(sp) #precisa fazer isso pq o jal muda o endereço de retorno(ra), então ele não retorna pro loop se não salvar
+	sw ra,0(sp) #precisa fazer isso pq o jal muda o endereï¿½o de retorno(ra), entï¿½o ele nï¿½o retorna pro loop se nï¿½o salvar
 		
-	xori s3, s3, 1 #inverte o s3, que decide qual sprite do link vai usar (muda o pé)		
+	xori s3, s3, 1 #inverte o s3, que decide qual sprite do link vai usar (muda o pï¿½)		
 	la t0, CHAR_POS  #carrega o endereco da posicao 	
 	lh t1, 0(t0) #carrega o valor x posicao 
 	lh t2, 2(t0) #pega a posicao atual
 	
-	addi t4, t2, 16	 #t4 vai guardar o valor x do endereço previsto depois da movimentação t2(y) + 16
+	addi t4, t2, 16	 #t4 vai guardar o valor x do endereï¿½o previsto depois da movimentaï¿½ï¿½o t2(y) + 16
 	
-	srai t4, t4, 4 #divide o y previsto por 16, pra ficar compatível com o mapa de colisão
+	srai t4, t4, 4 #divide o y previsto por 16, pra ficar compatï¿½vel com o mapa de colisï¿½o
 	srai t3, t1, 4 #divide o x previsto por 16
 	
 	
-	#Procedimento pra checar colisão
+	#Procedimento pra checar colisï¿½o
 	
-	jal CHECAR_COLISAO #a função vai retornar t5 = 1 se tiver obstáculo no endereço previsto e t5 = 0 senão
+	jal CHECAR_COLISAO #a funï¿½ï¿½o vai retornar t5 = 1 se tiver obstï¿½culo no endereï¿½o previsto e t5 = 0 senï¿½o
 	
-	lw ra, 0(sp) #volta o ra pro valor antigo, assim o endereço de retorno volta a ser o loop
+	lw ra, 0(sp) #volta o ra pro valor antigo, assim o endereï¿½o de retorno volta a ser o loop
 	addi sp, sp, 4 #reseta o sp
 	
 	li t6, 1
-	beq t5, t6, COLISAO #se t6 = 1 teve colisão
+	beq t5, t6, COLISAO #se t6 = 1 teve colisï¿½o
 	
-	#Não teve colisão, então carrega as coisas pra printar o personagem
+	#Nï¿½o teve colisï¿½o, entï¿½o carrega as coisas pra printar o personagem
 	
 	la t0, CHAR_POS #carrega o endereco da posicao
 	la t1, OLD_CHAR_POS #carrega o endereco da posicao passada
@@ -284,7 +314,7 @@ CHAR_BAIXO:
 	addi t1, t1, 16 #aumenta o valor x (para indicar o movimento)
 	sh t1, 2(t0) #faz o store do valor x novo
 	
-	beq s3, zero, p1b #s3 decide qual sprite do link vai ser printado (muda a posição dos pés)
+	beq s3, zero, p1b #s3 decide qual sprite do link vai ser printado (muda a posiï¿½ï¿½o dos pï¿½s)
 	la s2,baixo2
 	ret
 	p1b:	la s2, baixo
@@ -292,17 +322,70 @@ CHAR_BAIXO:
 
 COLISAO: ret
 
+CHECAR_PEGOU_ESPADA:
+	la t0, HAS_SWORD
+	lbu t0, 0(t0)
+	bne t0, zero, FIM_CHECAR_ESPADA # Se ja tem espada (HAS_SWORD=1), sai
+
+	#LINK
+	la t0, CHAR_POS
+	lh t1, 0(t0)			# x do Link
+	lh t2, 2(t0)			# y do Link
+	srai t1, t1, 4			# valor da grade (inves de 340, 240 --- 20, 15)
+	srai t2, t2, 4			# valor da grade 
+	
+	# Carrega as coordenadas de TILE da Espada
+	la t0, SWORD_POS
+	lh t3, 0(t0)			# x da Espada
+	lh t4, 2(t0)			# y da Espada
+	srai t3, t3, 4			# valor da grade 
+	srai t4, t4, 4			# valor da grade 
+	
+	# Compara as coordenadas de tile
+	bne t1, t3, FIM_CHECAR_ESPADA	# Se x do Link != x da Espada, sai
+	bne t2, t4, FIM_CHECAR_ESPADA	# Se y do Link != y da Espada, sai
+	
+	addi sp, sp, -4  #uma vez que chamaremos print e perderemos o endereco de retorno,
+	 		 #salva o endereco de retorn em sp que depois sera restaurado
+	sw ra, 0(sp)
+	
+	
+	li t5, 1	#flag HAS_SWORD atualizada
+	la t0, HAS_SWORD  
+	sb t5, 0(t0)
+	
+	la t0, SWORD_POS
+	la a0, tile		# Carrega o sprite tile
+	lh a1, 0(t0)		# x da espada
+	lh a2, 2(t0)		# y da espada
+	
+	li a3, 0		# Seleciona o frame 0
+	call PRINT		#apaga do frame 0
+	
+	li a3, 1		# Seleciona o frame 1
+	call PRINT		#apaga do frame 1
+	
+	#restaura o endereco de retorno para o game_loop
+	lw ra, 0(sp)
+	addi sp, sp, 4
+	
+FIM_CHECAR_ESPADA:
+	ret
+	
+	
+	
+
 CHECAR_COLISAO:
-	li t0, 20 #carrega t1=20, sendo 20 a largura do mapa de colisão (largura do mapa em tiles) 	
-	mul t0, t0, t4 #multiplica t4(y do endereço previsto) por 20 pra achar a linha em que o personagem está
-	add t0, t0, t3 #soma t3(x do endereço previsto) pelo valor da multiplicação pra achar a coordenada na linha
+	li t0, 20 #carrega t1=20, sendo 20 a largura do mapa de colisï¿½o (largura do mapa em tiles) 	
+	mul t0, t0, t4 #multiplica t4(y do endereï¿½o previsto) por 20 pra achar a linha em que o personagem estï¿½
+	add t0, t0, t3 #soma t3(x do endereï¿½o previsto) pelo valor da multiplicaï¿½ï¿½o pra achar a coordenada na linha
 	
-	la t1, mapa1_colisao #carrega o mapa de colisão em t1
-	add t1, t1, t0 #guarda t1 as coordenadas previstas do personagem no mapa de colisão
+	la t1, mapa1_colisao #carrega o mapa de colisï¿½o em t1
+	add t1, t1, t0 #guarda t1 as coordenadas previstas do personagem no mapa de colisï¿½o
 	
-	lbu t5, 0(t1) #carrega em t5 o valor que está nas coordenadas previstas do personagem no mapa de calor
-	#t5 = 1 se tem obstáculo
-	#t5 = 0 se não tem obstáculo
+	lbu t5, 0(t1) #carrega em t5 o valor que estï¿½ nas coordenadas previstas do personagem no mapa de calor
+	#t5 = 1 se tem obstï¿½culo
+	#t5 = 0 se nï¿½o tem obstï¿½culo
 	ret
 
 PRINT:
