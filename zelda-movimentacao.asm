@@ -20,6 +20,32 @@
 #s3 = flag de anima��o do link (pra alternar os p�s)
 
 .data
+
+NUM_MELODIA: 	.word 29
+NUM_HARPA:   	.word 96
+
+# Relogios separados para cada instrumento (comecam em 0)
+PROXIMA_NOTA_HARPA_TEMPO:   .word 0
+PROXIMA_NOTA_OCARINA_TEMPO: .word 0
+
+# MELODIA (Ocarina) 
+NOTAS_OCARINA: 
+.word 76,1132,79,566,74,1132,72,283,74,283,76,1132,79,566,74,1698
+.word 76,1132,79,566,86,1132,84,566,79,1132,77,283,76,283,74,1698
+.word 76,1132,79,566,74,1132,72,283,74,283,76,1132,79,566,74,1698
+.word 76,1132,79,566,86,1132,84,566,91,3396
+
+# HARPA (Arpejo)
+NOTAS_HARPA:
+.word 72,283,77,283,81,283,77,283,72,283,77,283,71,283,74,283,79,283,74,283,71,283,74,283
+.word 72,283,77,283,81,283,77,283,72,283,77,283,71,283,74,283,79,283,74,283,71,283,74,283
+.word 72,283,76,283,79,283,76,283,72,283,76,283,74,283,77,283,81,283,77,283,74,283,77,283
+.word 71,283,74,283,79,283,74,283,71,283,74,283,72,283,77,283,81,283,77,283,72,283,77,283
+.word 71,283,74,283,79,283,74,283,71,283,74,283,72,283,77,283,81,283,77,283,72,283,77,283
+.word 71,283,74,283,79,283,74,283,71,283,74,283,72,283,76,283,79,283,76,283,72,283,76,283
+.word 74,283,77,283,81,283,77,283,74,283,77,283,71,283,74,283,79,283,74,283,71,283,74,283
+.word 71,283,74,283,79,283,74,283,71,283,74,283,71,283,74,283,79,283,74,283,71,283,74,283
+
 	.include "sprites/tile.s"
 	.include "sprites/mapa1.s"
 	.include "sprites/link.s"
@@ -83,11 +109,46 @@ MAIN:   #mapa
 	li a3, 1			# no frame 1
 	call PRINT
 	
+	lw s4, NUM_MELODIA	# s4 = Total Melodia
+	lw s5, NUM_HARPA	# s5 = Total Harpa
+	
+	la s6, NOTAS_OCARINA	# s6 = Ponteiro para Melodia
+	la s7, NOTAS_HARPA	# s7 = Ponteiro para Harpa
+	la s8, NOTAS_OCARINA	# s8 = Backup Ponteiro Melodia
+	la s9, NOTAS_HARPA	# s9 = Backup Ponteiro Harpa
+	
+	li s10, 0		# s10 = Contador da Melodia (i)
+	li s11, 0		# s11 = Contador da Harpa (j)
+	
+	# a5 = ponteiro para os relogios (vamos recarregar no loop)
+	la t0, PROXIMA_NOTA_HARPA_TEMPO 
+	sw zero, 0(t0)		# Garante que o relogio da Harpa comece em 0
+	sw zero, 4(t0)		# Garante que o relogio da Ocarina comece em 0
+	
 	#
 	
 	li s0, 0			#vai ser usado para verificar o frame
 	la s2, baixo2			#sprite incial (link olhando para baixo)
 	li s3,0				#flag de animação (pés do link)
+	
+	#sincronia da musica -- isso serve para evitar que o tempo desalinhe com o start do game e toque muitas notas
+	#que nao deveriam ser tocadas ao mesmo tempo
+    
+	# 1. pega o tempo EXATO 
+	
+	li a7, 30           # Syscall time
+	ecall               # a0 = tempo atual em ms
+	    
+        # 2. define o inicio da musica para agora -- somente quando ja inicializou tudo
+        
+        la t0, PROXIMA_NOTA_HARPA_TEMPO
+        sw a0, 0(t0)        # proxima nota da Harpa = Agora
+        sw a0, 4(t0)        # proxima nota da Ocarina = Agora
+	
+	#pequeno atraso para o jogo respirar antes da musica
+        addi a0, a0, 500  # Adiciona 500ms 
+        sw a0, 0(t0)
+        sw a0, 4(t0)
 	
 
 GAME_LOOP: 
@@ -96,6 +157,8 @@ GAME_LOOP:
 	xori s0, s0, 1			#alterna entre 0 e 1 frame, visto que xor 0, 1 = 1 e xor 1, 1 = 0. Pinta primeiro em 1
 	
 	call CHECAR_PEGOU_ESPADA
+	
+	call TOCAR_MUSICA
 	
 	la t0, CHAR_POS			#carrega para t0 a posicao do personagem
 	mv a0,s2			#passa o valor s2 (sprite do link) pra a0, que vai ser argumento pro print	
@@ -429,4 +492,83 @@ PRINT_LINHA:
 	
 	ret
 	
-	
+TOCAR_MUSICA:
+
+    # 1. Pegar o Tempo Atual
+    li a7, 30        # Syscall 30 (Time)
+    ecall
+    mv t3, a0        # t3 = Tempo Atual 
+
+    # Carrega ponteiro inicial
+    la a5, PROXIMA_NOTA_HARPA_TEMPO 
+
+    lw t4, 0(a5)     # t4 = PROXIMA_NOTA_HARPA_TEMPO
+    
+    bltu t3, t4, CHECAR_OCARINA 
+
+    # É hora de tocar Harpa
+    beq s11, s5, REINICIAR_HARPA #considera quando s5 == limite da musica (tempo final) for igual ao tempo atual (notas decorridas)
+
+REINICIAR_HARPA_FIM:
+    # Carregar e tocar Harpa
+    lw a0, 0(s7)     # Nota
+    lw a1, 4(s7)     # Duração
+    mv t1, a1        # Salva duração em t1
+    li a2, 46        # Instrumento Harpa
+    li a3, 90        # Volume
+    li a7, 31        #Midi nao bloq
+    ecall
+    
+    la a5, PROXIMA_NOTA_HARPA_TEMPO #garantir a nao alteracao apos chamada de ecall
+    
+    add t4, t3, t1      # ProximaNota = TempoAtual + Duracao
+    sw t4, 0(a5)        # Salva
+    
+    # Avançar Harpa
+    addi s7, s7, 8
+    addi s11, s11, 1
+
+CHECAR_OCARINA:
+    
+    lw t4, 4(a5)        # t4 = PROXIMA_NOTA_OCARINA_TEMPO --- a5 ja foi checado para ver se esta certo (trecho acima)
+    
+    bltu t3, t4, FIM_MUSICA 
+
+    # É hora de tocar Ocarina
+    beq s10, s4, REINICIAR_MELODIA
+
+REINICIAR_MELODIA_FIM:
+    # Carregar e tocar Ocarina
+    lw a0, 0(s6)
+    lw a1, 4(s6)
+    mv t1, a1
+    li a2, 79
+    li a3, 127
+    li a7, 31
+    ecall
+    
+    la a5, PROXIMA_NOTA_HARPA_TEMPO #garantir que o a5 nao tenha sido alterado por ecall
+    
+    # Atualizar relógio da Ocarina
+    add t4, t3, t1
+    sw t4, 4(a5)        
+    
+    # Avançar Ocarina
+    addi s6, s6, 8
+    addi s10, s10, 1
+    
+    j FIM_MUSICA 
+
+REINICIAR_MELODIA:
+    mv s6, s8        # Reseta ponteiro Melodia
+    li s10, 0        # Reseta contador Melodia
+    
+    j REINICIAR_MELODIA_FIM
+
+REINICIAR_HARPA:
+    mv s7, s9        # Reseta ponteiro Harpa
+    li s11, 0        # Reseta contador Harpa
+    j REINICIAR_HARPA_FIM
+    
+FIM_MUSICA:
+    ret
