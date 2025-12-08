@@ -46,15 +46,39 @@ NOTAS_HARPA:
 .word 74,283,77,283,81,283,77,283,74,283,77,283,71,283,74,283,79,283,74,283,71,283,74,283
 .word 71,283,74,283,79,283,74,283,71,283,74,283,71,283,74,283,79,283,74,283,71,283,74,283
 
-	.include "sprites/tile.s"
-	.include "sprites/mapa1.s"
-	.include "sprites/link.s"
-	.include "sprites/espada.s"
-	.include "sprites/espada2.s"
-	.include "sprites/preto.s"
-	.include "sprites/coracao.s"
-	.include "sprites/rupy.s"
-	.include "sprites/numeros.s"
+	# --- SPRITES ---
+    .align 2                # Garante alinhamento
+    .include "sprites/tile.s"
+    
+    .align 2
+    .include "sprites/mapa1.s"
+    
+    .align 2
+    .include "sprites/link.s"
+    
+    .align 2
+    .include "sprites/espada.s"
+    
+    .align 2               
+    .include "sprites/espada2.s"
+    
+    .align 2
+    .include "sprites/espada_esq.s"
+    
+    .align 2
+    .include "sprites/espada_baixo.s"
+    
+    .align 2
+    .include "sprites/preto.s"
+    
+    .align 2
+    .include "sprites/coracao.s"
+    
+    .align 2
+    .include "sprites/rupy.s"
+    
+    .align 2
+    .include "sprites/numeros.s"
 
 CHAR_POS:	.half 48, 48			# x, y
 OLD_CHAR_POS:	.half 48, 48			# x, y
@@ -66,11 +90,14 @@ HAS_SWORD:	.byte 0		# Flag de estado: 0 = No mapa, 1 = Já foi pega
 VIDAS:    	.byte 3		#flag para vidas
 RUPY:		.half 2		#flag para moedas
 
+	.align 2
 VETOR_NUMEROS:			#vetor para facilitar o uso dos numeros
 	.word num0, num1, num2, num3, num4, num5, num6, num7, num8, num9
 
-
-
+LINK_DIR:       .byte 0     # 0=Baixo, 1=Cima, 2=Esq, 3=Dir (Inicia olhando pra baixo)
+TIMER_ATAQUE:   .byte 0     # Contador de frames do ataque (0 = Nao atacando)
+POS_ATAQUE:     .half 0, 0  # X, Y de onde a espada foi desenhada (para apagar)
+CLEANUP_FRAMES: .byte 0
 
 #Pra funcionar a colis�o, precisa fazer um mapa de colis�o 20x15. Cada valor desse mapa representa um tile 16x16
 #1 - tem obst�culo
@@ -227,6 +254,8 @@ GAME_LOOP:
 	
 	call ATUALIZAR_HUD 	#chamada para arrumar o HUD
 	
+	call DESENHAR_ATAQUE    #verificar o ataque
+	
 	#limpeza do frame invisivel (para apagar o rastro)
 	#limpa-se o frame invisivel, pois no proximo loop, quando printar, o loop repetir� e ter� um frame zerado sem o rastro.
 	
@@ -244,17 +273,41 @@ GAME_LOOP:
 # =============================
 # Procedimentos de Movimentacao
 
-KEY_SELECT: li t1,0xFF200000		# carrega o endere o de controle do KDMMIO 
-LOOP: 	lw t0,0(t1)			# Le bit de Controle Teclado # endereco da flag tecla apertada 
+KEY_SELECT: 
+
+	li t1,0xFF200000		# carrega o endere o de controle do KDMMIO
+	
+	# VERIFICAR SE JA ESTA ATACANDO (Bloqueio)
+	la t0, TIMER_ATAQUE
+	lb t3, 0(t0)            # Carrega timer
+	beq t3, zero, LER_TECLADO # Se 0, pode ler teclas
+    
+	# Se > 0, apenas decrementa e sai (Link travado) -- Vulgo atacando
+	addi t3, t3, -1
+	sb t3, 0(t0)
+	ret                     # Sai da funcao (nao le WASD)
+	 
+	  
+	   
+	     
+LER_TECLADO:
+
+	lw t0,0(t1)			# Le bit de Controle Teclado # endereco da flag tecla apertada 
    	andi t0,t0,0x0001		# mascara o bit menos significativo
    					# (l� do endereco controle de teclado uma flag(0 = tecla apertada | 1 = tecla apertada)			
    	beq t0,zero,FIM_LOOP		# n o tem tecla pressionada ent o volta ao loop
+   	
    	lw t2,4(t1)			# le o valor da tecla (no endereco 0xFF200004) #endereco dos valores ASCII
   	sw t2,12(t1)  			# escreve a tecla pressionada no display (no endereco 0xFF200012) #enderco do display
   	
   	
   	#Procedimento pra interpretar as teclas( mudar as posicoes respectivas quando w, a, s ou d forem clicadas)
 
+	# --- DETECTAR ATAQUE  ---
+	li t0, 'j'              # Tecla J para atacar
+	beq t2, t0, INICIAR_ATAQUE
+	
+	# --- DETECTAR MOVIMENTO --- 
 	li t0,'w'
 	beq t2,t0,CHAR_CIMA		# se tecla pressionada for 'w', chama CHAR_CIMA
 	
@@ -267,17 +320,28 @@ LOOP: 	lw t0,0(t1)			# Le bit de Controle Teclado # endereco da flag tecla apert
 	li t0,'d'
 	beq t2,t0,CHAR_DIR		# se tecla pressionada for 'd', chama CHAR_DIR
 	
-	#NOVA TECLA (B) para fazer a espada bater
-	
-	
-
-	
 
 FIM_LOOP:	ret
   	
+INICIAR_ATAQUE:
+	# Verifica se tem espada
+	la t0, HAS_SWORD
+	lb t0, 0(t0)
+	beq t0, zero, FIM_LOOP  # Se nao tem espada, nao ataca (ou ataca sem espada)
+    
+	# Configura Timer
+	la t0, TIMER_ATAQUE
+	li t1, 15              # Duracao do ataque (10 frames)
+	sb t1, 0(t0)
+	ret
+
 CHAR_DIR: 
 	addi sp, sp, -4 #usa sp(stack pointer) pra guardar o valor de ra na pilha temporariamente
 	sw ra,0(sp) #precisa fazer isso pq o jal muda o endere�o de retorno(ra), ent�o ele n�o retorna pro loop se n�o salvar
+	
+	la t0, LINK_DIR
+	li t1, 3            # 3 = Direita
+	sb t1, 0(t0)        # Salva direcao
 	
 	xori s3, s3, 1	#inverte o s3, que decide qual sprite do link vai usar (muda o p�)		
 	la t0, CHAR_POS  #carrega o endereco da posicao 
@@ -321,6 +385,10 @@ CHAR_ESQ:
 	addi sp, sp, -4 #usa sp(stack pointer) pra guardar o valor de ra na pilha temporariamente
 	sw ra,0(sp) #precisa fazer isso pq o jal muda o endere�o de retorno(ra), ent�o ele n�o retorna pro loop se n�o salvar
 	
+	la t0, LINK_DIR
+	li t1, 2            # 2 = Direita
+	sb t1, 0(t0)        # Salva direcao
+	
 	xori s3, s3, 1	#inverte o s3, que decide qual sprite do link vai usar (muda o p�)	
 	la t0, CHAR_POS  #carrega o endereco da posicao 	
 	lh t1, 0(t0) #carrega o valor x posicao 
@@ -363,7 +431,11 @@ CHAR_ESQ:
 CHAR_CIMA:
 	addi sp, sp, -4 #usa sp(stack pointer) pra guardar o valor de ra na pilha temporariamente
 	sw ra,0(sp) #precisa fazer isso pq o jal muda o endere�o de retorno(ra), ent�o ele n�o retorna pro loop se n�o salvar
-	 
+	
+	la t0, LINK_DIR
+	li t1, 1            # 1 = Direita
+	sb t1, 0(t0)        # Salva direcao
+	
 	xori s3, s3, 1	#inverte o s3, que decide qual sprite do link vai usar (muda o p�)		
 	la t0, CHAR_POS  #carrega o endereco da posicao 	
 	lh t1, 0(t0) #carrega o valor x posicao 
@@ -404,7 +476,11 @@ CHAR_CIMA:
 CHAR_BAIXO: 
 	addi sp, sp, -4 #usa sp(stack pointer) pra guardar o valor de ra na pilha temporariamente
 	sw ra,0(sp) #precisa fazer isso pq o jal muda o endere�o de retorno(ra), ent�o ele n�o retorna pro loop se n�o salvar
-		
+	
+	la t0, LINK_DIR
+	li t1, 0            # 0 = Direita
+	sb t1, 0(t0)        # Salva direcao	
+				
 	xori s3, s3, 1 #inverte o s3, que decide qual sprite do link vai usar (muda o p�)		
 	la t0, CHAR_POS  #carrega o endereco da posicao 	
 	lh t1, 0(t0) #carrega o valor x posicao 
@@ -653,6 +729,119 @@ LOOP_RUPIAS:
     bne t4, zero, LOOP_RUPIAS
 
 FIM_HUD:
+    lw ra, 0(sp)
+    addi sp, sp, 4
+    ret
+
+# ========================= #
+#   Procedimento de ataque  #
+
+DESENHAR_ATAQUE:
+    addi sp, sp, -4
+    sw ra, 0(sp)
+
+    #limpeza
+    la t0, POS_ATAQUE
+    lh a1, 0(t0)        # Carrega X antigo
+    lh a2, 2(t0)        # Carrega Y antigo
+    
+    # Se X=0, não tem nada para apagar
+    beq a1, zero, VERIFICAR_ESTADO 
+    
+    # Apaga desenhando o chão
+    la a0, tile         
+    mv a3, s0           # Frame atual
+    
+    addi sp, sp, -4     # Salva t0
+    sw t0, 0(sp)
+    call PRINT
+    lw t0, 0(sp)
+    addi sp, sp, 4
+
+VERIFICAR_ESTADO:
+    #definir se vai limpar, parar ou atacar
+    la t1, TIMER_ATAQUE
+    lb t2, 0(t1)        # t2 = Timer Atual
+    
+    # Se Timer > 0, vamos desenhar a espada --> ataque
+    bne t2, zero, DESENHAR_NOVA_ESPADA
+    
+    # Se Timer == 0, verificamos se precisamos continuar limpando (Ressaca) -- para evitar espada sobrando
+    la t3, CLEANUP_FRAMES
+    lb t4, 0(t3)
+    
+    beq t4, zero, ZERAR_MEMORIA # Se Cleanup também é 0, acabou tudo.
+    
+    # Se Cleanup > 0, apenas decrementamos e saimos (limpamnos no passo 1)
+    addi t4, t4, -1
+    sb t4, 0(t3)
+    j FIM_ATQ
+
+ZERAR_MEMORIA:
+    # Zera o POS_ATAQUE para parar de tentar limpar no futuro
+    sh zero, 0(t0)
+    sh zero, 2(t0)
+    j FIM_ATQ
+
+DESENHAR_NOVA_ESPADA:
+    
+    # Recarrega o Cleanup para 2 (Garante limpeza dos 2 frames quando acabar)
+    la t3, CLEANUP_FRAMES
+    li t4, 2
+    sb t4, 0(t3)
+
+    # Carrega Posição do Link
+    la t0, CHAR_POS
+    lh t1, 0(t0)        # Link X
+    lh t2, 2(t0)        # Link Y
+    
+    la t0, LINK_DIR
+    lb t3, 0(t0)        # Direção
+    
+    # Escolhe a direção (0=Baixo, 1=Cima, 2=Esq, 3=Dir)
+    li t4, 0
+    beq t3, t4, ATQ_BAIXO
+    li t4, 1
+    beq t3, t4, ATQ_CIMA
+    li t4, 2
+    beq t3, t4, ATQ_ESQ
+    # Se for 3 cai direto
+
+ATQ_DIR:
+    la a0, espada2      # Horizontal
+    addi a1, t1, 16     # X = Link + 16
+    addi a2, t2, 4      # Y Ajustado
+    j DO_PRINT_ATQ
+
+ATQ_ESQ:
+    la a0, espada_esq     # Horizontal
+    addi a1, t1, -16    # X = Link - 16
+    addi a2, t2, 4      
+    j DO_PRINT_ATQ
+
+ATQ_BAIXO:
+    la a0, espada_baixo      # Vertical
+    addi a1, t1, 4      
+    addi a2, t2, 14     # Y = Link + 14
+    j DO_PRINT_ATQ
+
+ATQ_CIMA:
+    la a0, espada       # Vertical
+    addi a1, t1, 4      
+    addi a2, t2, -14    # Y = Link - 14 --> LEMBRAR QUE OS HORIZONTAIS NAO PODEM NAO SER MULT DE 4
+    # j DO_PRINT_ATQ
+
+DO_PRINT_ATQ:
+    mv a3, s0           # Frame atual
+    
+    # Salva a nova posição na memória (para limpar no próximo frame)
+    la t0, POS_ATAQUE
+    sh a1, 0(t0)
+    sh a2, 2(t0)
+    
+    call PRINT
+
+FIM_ATQ:
     lw ra, 0(sp)
     addi sp, sp, 4
     ret
