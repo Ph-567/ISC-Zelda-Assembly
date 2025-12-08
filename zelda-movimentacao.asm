@@ -51,13 +51,25 @@ NOTAS_HARPA:
 	.include "sprites/link.s"
 	.include "sprites/espada.s"
 	.include "sprites/espada2.s"
+	.include "sprites/preto.s"
+	.include "sprites/coracao.s"
+	.include "sprites/rupy.s"
+	.include "sprites/numeros.s"
 
-CHAR_POS:	.half 48,16			# x, y
-OLD_CHAR_POS:	.half 48,16			# x, y
+CHAR_POS:	.half 48, 48			# x, y
+OLD_CHAR_POS:	.half 48, 48			# x, y
 
-SWORD_POS:	.half 80,48 	#posica espada mapa
+SWORD_POS:	.half 80, 80 	#posica espada mapa
 
 HAS_SWORD:	.byte 0		# Flag de estado: 0 = No mapa, 1 = Já foi pega
+
+VIDAS:    	.byte 3		#flag para vidas
+RUPY:		.half 2		#flag para moedas
+
+VETOR_NUMEROS:			#vetor para facilitar o uso dos numeros
+	.word num0, num1, num2, num3, num4, num5, num6, num7, num8, num9
+
+
 
 
 #Pra funcionar a colis�o, precisa fazer um mapa de colis�o 20x15. Cada valor desse mapa representa um tile 16x16
@@ -85,7 +97,7 @@ mapa1_colisao:
 .text
 
 
-MAIN:   #mapa
+MAIN:   # Mapa ---------
 
 	la a0, mapa1
 	li a1, 0
@@ -95,7 +107,7 @@ MAIN:   #mapa
 	li a3,1				# frame = 1
 	call PRINT			# imprime o sprite
 	
-	#espada
+	# Espada --------
 	
 	la t0, SWORD_POS
 	la a0, espada			# Carrega o sprite da espada
@@ -108,6 +120,49 @@ MAIN:   #mapa
 	call PRINT
 	li a3, 1			# no frame 1
 	call PRINT
+	
+	# HUD ------
+	la a0, preto    # Sprite preto
+	li a2, 0            # Y = 0 (Linha 1)
+	    
+	# Loop para preencher a linha X=0 ate X=304
+	    
+	li s10, 0    
+            
+LOOP_HUD_LINHA1:
+
+	li t1, 320
+	bge s10, t1, FIM_HUD_LINHA1
+	    
+	mv a1, s10           # X atual
+	    
+	li a3, 0            # Frame 0
+	call PRINT
+	li a3, 1            # Frame 1
+	call PRINT
+	    
+	addi s10, s10, 16     # Proximo tile
+	j LOOP_HUD_LINHA1
+FIM_HUD_LINHA1:
+
+	li a2, 16           # Y = 16 (Linha 2)
+	li s10, 0
+    
+LOOP_HUD_LINHA2:
+
+	li t1, 320
+	bge s10, t1, FIM_HUD_LINHA2
+	mv a1, s10
+	li a3, 0
+	call PRINT
+	li a3, 1
+	call PRINT
+	addi s10, s10, 16
+	j LOOP_HUD_LINHA2
+    
+FIM_HUD_LINHA2:
+	
+	# MUSICA ------------
 	
 	lw s4, NUM_MELODIA	# s4 = Total Melodia
 	lw s5, NUM_HARPA	# s5 = Total Harpa
@@ -170,6 +225,8 @@ GAME_LOOP:
 	li t2,0xFF200604	# t2 aponta para o endereco onde eu decido qual frame mostra
 	sw s0,0(t2)		# coloca no endereco que decide o que mostra o frame s0
 	
+	call ATUALIZAR_HUD 	#chamada para arrumar o HUD
+	
 	#limpeza do frame invisivel (para apagar o rastro)
 	#limpa-se o frame invisivel, pois no proximo loop, quando printar, o loop repetir� e ter� um frame zerado sem o rastro.
 	
@@ -184,7 +241,9 @@ GAME_LOOP:
 	
 	j GAME_LOOP
 	
-	
+# =============================
+# Procedimentos de Movimentacao
+
 KEY_SELECT: li t1,0xFF200000		# carrega o endere o de controle do KDMMIO 
 LOOP: 	lw t0,0(t1)			# Le bit de Controle Teclado # endereco da flag tecla apertada 
    	andi t0,t0,0x0001		# mascara o bit menos significativo
@@ -451,6 +510,9 @@ CHECAR_COLISAO:
 	#t5 = 0 se n�o tem obst�culo
 	ret
 
+# ==================================
+#  Procedimentos de desenho (print)
+
 PRINT:
 	li t0, 0xFF0 #bitmap
 	add t0, t0, a3 #qual frame esta (o ou 1)
@@ -491,6 +553,112 @@ PRINT_LINHA:
 	blt t2, t5, PRINT_LINHA #enquanto nao estivermos na ultima linha, printe a linha
 	
 	ret
+
+# garantir que o hud esteja em dia
+ATUALIZAR_HUD:
+    addi sp, sp, -4
+    sw ra, 0(sp)
+    
+    # ------------------
+    # PARTE 1: CORAÇÕES 
+  
+    la t0, VIDAS
+    lb t1, 0(t0)            # t1 = Vidas
+    la a0, coracao
+    li a1, 48              # X Inicial Corações
+    li a2, 0                # Y = 0
+    mv a3, s0               # Frame oculto
+
+LOOP_CORACOES:
+    beq t1, zero, FIM_CORACOES
+    
+    # Salva contexto
+    addi sp, sp, -16
+    sw a0, 0(sp)
+    sw a1, 4(sp)
+    sw a2, 8(sp)
+    sw t1, 12(sp)
+    
+    call PRINT
+    
+    # Restaura contexto
+    lw t1, 12(sp)
+    lw a2, 8(sp)
+    lw a1, 4(sp)
+    lw a0, 0(sp)
+    addi sp, sp, 16
+    
+    addi a1, a1, 16         # Proximo X
+    addi t1, t1, -1
+    j LOOP_CORACOES
+
+FIM_CORACOES:
+
+    # -----------------
+    # PARTE 2: RUPIAS 
+    
+    la a0, rupy            # Sprite Rupia
+    li a1, 48             # X alinhado com o primeiro coração
+    li a2, 16               # Y = 16 (Linha de baixo)
+    mv a3, s0
+    
+    addi sp, sp, -4         # Salva a1/a2 -- para nao perder no print
+    sw a1, 0(sp)
+    call PRINT
+    lw a1, 0(sp)
+    addi sp, sp, 4
+    
+    # Desenha os Números (X=224, 208, 192)
+    
+    la t0, RUPY
+    lh t0, 0(t0)            # t0 = Valor Total (ex: 125)
+    li t1, 10               # Divisor (10)
+    
+    li a1, 96             # X da Unidade
+    li a2, 16               # Y
+    
+    li t4, 3                # Contador: Vamos desenhar sempre 3 dígitos (ex: 005)
+
+LOOP_RUPIAS:
+    # Extrair o dígito da direita
+    rem t2, t0, t1          # t2 = Valor % 10 (Dígito atual)
+    div t0, t0, t1          # t0 = Valor / 10 (Reduz o valor total)
+    
+    # Achar o sprite na Tabela
+    la t3, VETOR_NUMEROS
+    slli t2, t2, 2          # Digito * 4 (pular palavras)
+    add t3, t3, t2          # Endereço na tabela
+    lw a0, 0(t3)            # a0 = Endereço do sprite (numX)
+    
+    # Desenhar
+    addi sp, sp, -20        # Salva contexto crítico
+    sw a0, 0(sp)
+    sw a1, 4(sp)
+    sw a2, 8(sp)
+    sw t0, 12(sp)           # Valor restante das rupias
+    sw t4, 16(sp)           # Contador de loop
+    
+    call PRINT
+    
+    lw t4, 16(sp)
+    lw t0, 12(sp)
+    lw a2, 8(sp)
+    lw a1, 4(sp)
+    lw a0, 0(sp)
+    addi sp, sp, 20
+    
+    # Preparar próximo dígito (andar para a esquerda)
+    addi a1, a1, -16        # Recua X
+    addi t4, t4, -1         # Decrementa contador
+    bne t4, zero, LOOP_RUPIAS
+
+FIM_HUD:
+    lw ra, 0(sp)
+    addi sp, sp, 4
+    ret
+    
+# ========================= #
+#  Procedimentos da Musica  #
 	
 TOCAR_MUSICA:
 
