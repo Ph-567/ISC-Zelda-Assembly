@@ -47,7 +47,7 @@ NOTAS_HARPA:
 .word 71,283,74,283,79,283,74,283,71,283,74,283,71,283,74,283,79,283,74,283,71,283,74,283
 
 	# --- SPRITES ---
-    .align 2                # Garante alinhamento
+    .align 2                
     .include "sprites/tile.s"
     
     .align 2
@@ -92,24 +92,55 @@ NOTAS_HARPA:
     .align 2
     .include "sprites/tile2.s"
     
+    .align 2
+    .include "sprites/escudo.s"
+    
+    .align 2
+    .include "sprites/chave.s"
+    
+    .align 2
+    .include "sprites/moldura.s"
+   
+# ===================== #
+# MOVIMENTACAO
+
 CHAR_POS:	.half 64, 64			# x, y
 OLD_CHAR_POS:	.half 64, 64			# x, y
 
+# ===================== #
+# ESPADA
 SWORD_POS:	.half 80, 80 	#posica espada mapa
-
 HAS_SWORD:	.byte 0		# Flag de estado: 0 = No mapa, 1 = Já foi pega
 
+# ===================== #
+# HUD
 VIDAS:    	.byte 3		#flag para vidas
-RUPY:		.half 2		#flag para moedas
+RUPY:		.half 50		#flag para moedas
 
+# ===================== #
+# NUMEROS
 	.align 2
 VETOR_NUMEROS:			#vetor para facilitar o uso dos numeros
 	.word num0, num1, num2, num3, num4, num5, num6, num7, num8, num9
 
+# ===================== #
+# ATAQUE
 LINK_DIR:       .byte 0     # 0=Baixo, 1=Cima, 2=Esq, 3=Dir (Inicia olhando pra baixo)
 TIMER_ATAQUE:   .byte 0     # Contador de frames do ataque (0 = Nao atacando)
 POS_ATAQUE:     .half 0, 0  # X, Y de onde a espada foi desenhada (para apagar)
 CLEANUP_FRAMES: .byte 0
+
+# ===================== #
+# LOJA
+SOLD_HEART:     .byte 0
+SOLD_SHIELD:    .byte 0
+SOLD_KEY:       .byte 0
+
+# ===================== #
+# LOJA -- INVENTARIO
+HAS_KEY:        .byte 0     # 0 = Nao, 1 = Sim
+HAS_SHIELD:     .byte 0     # 0 = Nao, 1 = Sim (Vida Extra)
+
 
 #Pra funcionar a colis?o, precisa fazer um mapa de colis?o 20x15. Cada valor desse mapa representa um tile 16x16
 #1 - tem obst?culo
@@ -178,8 +209,8 @@ dungeon_colisao:
 .byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 .byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
 .byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
-.byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
-.byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
+.byte 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1
+.byte 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1
 .byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
 .byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
 .byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
@@ -198,6 +229,7 @@ CURR_MAP_TILE: .word tile
 # Tabela de transicao
 # Estrutura: [numero no mapa de colisao, endereço mapa, endereço mapa de colsiao, Novo_Link_X, Novo_Link_Y, tile usada]
 # Exemplo: Se pisar no Tile 2, vai pro Mapa 2, nas coordenadas (16, 120), usando a imagem 'tile' para cobrir o rastro
+	.align 2
 PORTAL_TABLE:
     .word 2, mapa2, mapa2_colisao, 16, 128, tile  # Saída do Mapa 1 p/ Mapa 2
     .word 3, mapa3, mapa3_colisao, 144, 192, tile2 #Saída do mapa 2 p/ Mapa 3
@@ -321,40 +353,47 @@ FIM_HUD_LINHA2:
 	
 
 GAME_LOOP: 
+        call    KEY_SELECT
+        
+        # Alternar Frame (Agora s0 é o frame oculto onde vamos desenhar)
+        xori    s0, s0, 1               
+        
+        # LIMPEZA DO RASTRO 
+        # Apaga o Link da posição antiga desenhando o tile do mapa atual
+        la      t0, OLD_CHAR_POS
+        lw      a0, CURR_MAP_TILE       # Carrega tile do mapa atual
+        lh      a1, 0(t0)
+        lh      a2, 2(t0)
+        mv      a3, s0                  # Desenha no frame oculto
+        call    PRINT
 
-	call KEY_SELECT
-	xori s0, s0, 1			#alterna entre 0 e 1 frame, visto que xor 0, 1 = 1 e xor 1, 1 = 0. Pinta primeiro em 1
-	
-	call CHECAR_PEGOU_ESPADA
-	
-	call TOCAR_MUSICA
-	
-	la t0, CHAR_POS			#carrega para t0 a posicao do personagem
-	mv a0,s2			#passa o valor s2 (sprite do link) pra a0, que vai ser argumento pro print	
-	lh a1, 0,(t0)			#carrega a posicao x no CHAR_POS
-	lh a2, 2(t0)			#carrega a posicao y no CHAR_POS
-	mv a3, s0			#define o frame
-	call PRINT
-	
-	li t2,0xFF200604	# t2 aponta para o endereco onde eu decido qual frame mostra
-	sw s0,0(t2)		# coloca no endereco que decide o que mostra o frame s0
-	
-	call ATUALIZAR_HUD 	#chamada para arrumar o HUD
-	
-	call DESENHAR_ATAQUE    #verificar o ataque
-	
-	#limpeza do frame invisivel (para apagar o rastro)
-	#limpa-se o frame invisivel, pois no proximo loop, quando printar, o loop repetir? e ter? um frame zerado sem o rastro.
-	
-	xori s1, s0, 1 			#processo de inversao do frame visivel e salvar o inverso em s1
-	la t0, OLD_CHAR_POS		#carrega para t0 a posicao do personagem
-	lw a0,CURR_MAP_TILE 		#printa a tile no lugar onde estava o personagem
-	lh a1, 0,(t0)			#carrega a posicao x no CHAR_POS
-	lh a2, 2(t0)			#carrega a posicao y no CHAR_POS
-	mv a3, s1			#define o frame
-	call PRINT
-	
-	j GAME_LOOP
+        # Lógica do Jogo (Cálculos)
+        call    CHECAR_PEGOU_ESPADA
+        call    TOCAR_MUSICA
+        call    CHECAR_LOJA             
+        
+        # Renderização do FUNDO (Itens da Loja)
+        call    DESENHAR_LOJA           
+        
+        # Renderização do PRIMEIRO PLANO (Ataque e Link)
+        call    DESENHAR_ATAQUE         
+        
+        # Desenha o Link
+        la      t0, CHAR_POS
+        mv      a0, s2                  # Sprite do Link
+        lh      a1, 0(t0)
+        lh      a2, 2(t0)
+        mv      a3, s0                  # Frame atual
+        call    PRINT
+        
+        # Interface (HUD) 
+        call    ATUALIZAR_HUD 
+        
+        # Atualiza o Display 
+        li      t2, 0xFF200604
+        sw      s0, 0(t2)
+        
+        j       GAME_LOOP
 	
 # =============================
 # Procedimentos de Movimentacao
@@ -708,6 +747,8 @@ FIM_MUDANCA:
     
 COLISAO: ret
 
+# ---- COLISAO COM A ESPADA ---- 
+
 CHECAR_PEGOU_ESPADA:
 	la t0, HAS_SWORD
 	lbu t0, 0(t0)
@@ -759,7 +800,7 @@ FIM_CHECAR_ESPADA:
 	ret
 	
 	
-	
+# --- COLISAO NORMAL ----
 
 CHECAR_COLISAO:
 	li t0, 20 #carrega t1=20, sendo 20 a largura do mapa de colis?o (largura do mapa em tiles) 	
@@ -773,6 +814,151 @@ CHECAR_COLISAO:
 	#t5 = 1 se tem obst?culo
 	#t5 = 0 se n?o tem obst?culo
 	ret
+
+# --- COLISAO DE COMPRA -----
+
+CHECAR_LOJA:
+        #Salvar RA
+        addi    sp, sp, -4
+        sw      ra, 0(sp)
+
+
+        # 1. Verificar Mapa
+        lw      t0, CURR_MAP_IMG
+        la      t1, dungeon
+        bne     t0, t1, RET_LOJA
+
+        # Carrega posicao do Link
+        la      t0, CHAR_POS
+        lh      t1, 0(t0)               # Link X
+        lh      t2, 2(t0)               # Link Y
+
+        # === ESCUDO ===
+        li      t3, 100                 # Item X
+        li      t4, 120                 # Item Y
+        li      t5, 50                  # Preco
+
+        la      t6, SOLD_SHIELD
+        lb      s11, 0(t6)
+        bne     s11, zero, CHECK_KEY_BUY
+
+        #colisao x
+        sub     t0, t1, t3
+        bgez    t0, SHIELD_X_OK
+        sub     t0, zero, t0
+SHIELD_X_OK:
+        li      s11, 16
+        bgt     t0, s11, CHECK_KEY_BUY
+
+        #colisao y
+        sub     t0, t2, t4
+        bgez    t0, SHIELD_Y_OK
+        sub     t0, zero, t0
+SHIELD_Y_OK:
+        bgt     t0, s11, CHECK_KEY_BUY
+
+        # Check Dinheiro
+        la      t0, RUPY
+        lh      t6, 0(t0)
+        blt     t6, t5, CHECK_KEY_BUY
+
+        # COMPRA!
+        sub     t6, t6, t5
+        sh      t6, 0(t0)
+
+        li      t6, 1
+        la      t0, SOLD_SHIELD
+        sb      t6, 0(t0)
+        la      t0, HAS_SHIELD
+        sb      t6, 0(t0)
+
+        call    TOCAR_KACHING
+        j       RET_LOJA
+
+CHECK_KEY_BUY:
+        # === CHAVE ===
+        li      t3, 160
+        li      t4, 120
+        li      t5, 80
+
+        la      t6, SOLD_KEY
+        lb      s11, 0(t6)
+        bne     s11, zero, CHECK_HEART_BUY
+
+        sub     t0, t1, t3
+        bgez    t0, KEY_X_OK
+        sub     t0, zero, t0
+KEY_X_OK:
+        li      s11, 16
+        bgt     t0, s11, CHECK_HEART_BUY
+
+        sub     t0, t2, t4
+        bgez    t0, KEY_Y_OK
+        sub     t0, zero, t0
+KEY_Y_OK:
+        bgt     t0, s11, CHECK_HEART_BUY
+
+        la      t0, RUPY
+        lh      t6, 0(t0)
+        blt     t6, t5, CHECK_HEART_BUY
+
+        sub     t6, t6, t5
+        sh      t6, 0(t0)
+
+        li      t6, 1
+        la      t0, SOLD_KEY
+        sb      t6, 0(t0)
+        la      t0, HAS_KEY
+        sb      t6, 0(t0)
+
+        call    TOCAR_KACHING
+        j       RET_LOJA
+
+CHECK_HEART_BUY:
+        # === CORAÇÃO ===
+        li      t3, 220
+        li      t4, 120
+        li      t5, 10
+
+        la      t6, SOLD_HEART
+        lb      s11, 0(t6)
+        bne     s11, zero, RET_LOJA
+
+        sub     t0, t1, t3
+        bgez    t0, HEART_X_OK
+        sub     t0, zero, t0
+HEART_X_OK:
+        li      s11, 16
+        bgt     t0, s11, RET_LOJA
+
+        sub     t0, t2, t4
+        bgez    t0, HEART_Y_OK
+        sub     t0, zero, t0
+HEART_Y_OK:
+        bgt     t0, s11, RET_LOJA
+
+        la      t0, RUPY
+        lh      t6, 0(t0)
+        blt     t6, t5, RET_LOJA
+
+        sub     t6, t6, t5
+        sh      t6, 0(t0)
+
+        li      t6, 1
+        la      t0, SOLD_HEART
+        sb      t6, 0(t0)
+
+        la      t0, VIDAS
+        li      t6, 3
+        sb      t6, 0(t0)
+
+        call    TOCAR_KACHING
+
+RET_LOJA:
+        # --- RECUPERA O RA ANTES DE SAIR ---
+        lw      ra, 0(sp)
+        addi    sp, sp, 4
+        ret
 
 # ==================================
 #  Procedimentos de desenho (print)
@@ -819,107 +1005,286 @@ PRINT_LINHA:
 	ret
 
 # garantir que o hud esteja em dia
+
 ATUALIZAR_HUD:
-    addi sp, sp, -4
-    sw ra, 0(sp)
-    
-    # ------------------
-    # PARTE 1: CORAÇÕES 
-  
-    la t0, VIDAS
-    lb t1, 0(t0)            # t1 = Vidas
-    la a0, coracao
-    li a1, 48              # X Inicial Corações
-    li a2, 0                # Y = 0
-    mv a3, s0               # Frame oculto
+        addi    sp, sp, -4
+        sw      ra, 0(sp)
+        
+        # CORACAO
+        la      t0, VIDAS
+        lb      t1, 0(t0)
+        la      a0, coracao
+        li      a1, 48
+        li      a2, 0
+        mv      a3, s0
 
 LOOP_CORACOES:
-    beq t1, zero, FIM_CORACOES
-    
-    # Salva contexto
-    addi sp, sp, -16
-    sw a0, 0(sp)
-    sw a1, 4(sp)
-    sw a2, 8(sp)
-    sw t1, 12(sp)
-    
-    call PRINT
-    
-    # Restaura contexto
-    lw t1, 12(sp)
-    lw a2, 8(sp)
-    lw a1, 4(sp)
-    lw a0, 0(sp)
-    addi sp, sp, 16
-    
-    addi a1, a1, 16         # Proximo X
-    addi t1, t1, -1
-    j LOOP_CORACOES
+        beq     t1, zero, FIM_CORACOES
+        
+        addi    sp, sp, -16
+        sw      a0, 0(sp)
+        sw      a1, 4(sp)
+        sw      a2, 8(sp)
+        sw      t1, 12(sp)
+        
+        call    PRINT
+        
+        lw      t1, 12(sp)
+        lw      a2, 8(sp)
+        lw      a1, 4(sp)
+        lw      a0, 0(sp)
+        addi    sp, sp, 16
+        
+        addi    a1, a1, 16
+        addi    t1, t1, -1
+        j       LOOP_CORACOES
 
 FIM_CORACOES:
 
-    # -----------------
-    # PARTE 2: RUPIAS 
-    
-    la a0, rupy            # Sprite Rupia
-    li a1, 48             # X alinhado com o primeiro coração
-    li a2, 16               # Y = 16 (Linha de baixo)
-    mv a3, s0
-    
-    addi sp, sp, -4         # Salva a1/a2 -- para nao perder no print
-    sw a1, 0(sp)
-    call PRINT
-    lw a1, 0(sp)
-    addi sp, sp, 4
-    
-    # Desenha os Números (X=224, 208, 192)
-    
-    la t0, RUPY
-    lh t0, 0(t0)            # t0 = Valor Total (ex: 125)
-    li t1, 10               # Divisor (10)
-    
-    li a1, 96             # X da Unidade
-    li a2, 16               # Y
-    
-    li t4, 3                # Contador: Vamos desenhar sempre 3 dígitos (ex: 005)
+        #RUPIAS -- MOEDA
+        la      a0, rupy
+        li      a1, 48
+        li      a2, 16
+        mv      a3, s0
+        
+        addi    sp, sp, -4
+        sw      a1, 0(sp)
+        call    PRINT
+        lw      a1, 0(sp)
+        addi    sp, sp, 4
+        
+        # Numeros
+        la      t0, RUPY
+        lh      t0, 0(t0)
+        li      t1, 10
+        li      a1, 96
+        li      a2, 16
+        li      t4, 3
 
 LOOP_RUPIAS:
-    # Extrair o dígito da direita
-    rem t2, t0, t1          # t2 = Valor % 10 (Dígito atual)
-    div t0, t0, t1          # t0 = Valor / 10 (Reduz o valor total)
-    
-    # Achar o sprite na Tabela
-    la t3, VETOR_NUMEROS
-    slli t2, t2, 2          # Digito * 4 (pular palavras)
-    add t3, t3, t2          # Endereço na tabela
-    lw a0, 0(t3)            # a0 = Endereço do sprite (numX)
-    
-    # Desenhar
-    addi sp, sp, -20        # Salva contexto crítico
-    sw a0, 0(sp)
-    sw a1, 4(sp)
-    sw a2, 8(sp)
-    sw t0, 12(sp)           # Valor restante das rupias
-    sw t4, 16(sp)           # Contador de loop
-    
-    call PRINT
-    
-    lw t4, 16(sp)
-    lw t0, 12(sp)
-    lw a2, 8(sp)
-    lw a1, 4(sp)
-    lw a0, 0(sp)
-    addi sp, sp, 20
-    
-    # Preparar próximo dígito (andar para a esquerda)
-    addi a1, a1, -16        # Recua X
-    addi t4, t4, -1         # Decrementa contador
-    bne t4, zero, LOOP_RUPIAS
+        rem     t2, t0, t1
+        div     t0, t0, t1
+        
+        la      t3, VETOR_NUMEROS
+        slli    t2, t2, 2
+        add     t3, t3, t2
+        lw      a0, 0(t3)
+        
+        addi    sp, sp, -20
+        sw      a0, 0(sp)
+        sw      a1, 4(sp)
+        sw      a2, 8(sp)
+        sw      t0, 12(sp)
+        sw      t4, 16(sp)
+        
+        call    PRINT
+        
+        lw      t4, 16(sp)
+        lw      t0, 12(sp)
+        lw      a2, 8(sp)
+        lw      a1, 4(sp)
+        lw      a0, 0(sp)
+        addi    sp, sp, 20
+        
+        addi    a1, a1, -16
+        addi    t4, t4, -1
+        bne     t4, zero, LOOP_RUPIAS
+
+        #INVENTARIO
+        
+        #ESCUDO
+        la      a0, moldura
+        li      a1, 240         
+        li      a2, 8           
+        mv      a3, s0
+        call    PRINT
+        
+        la      t0, HAS_SHIELD
+        lb      t0, 0(t0)
+        beq     t0, zero, DRAW_SLOT_2
+        
+        la      a0, escudo
+        li      a1, 240
+        li      a2, 8
+        call    PRINT
+
+DRAW_SLOT_2:
+        #CHAVE
+        la      a0, moldura
+        li      a1, 264         
+        li      a2, 8
+        mv      a3, s0
+        call    PRINT
+        
+        la      t0, HAS_KEY
+        lb      t0, 0(t0)
+        beq     t0, zero, DRAW_SLOT_3   # Alterado para pular para Slot 3
+        
+        la      a0, chave
+        li      a1, 264
+        li      a2, 8
+        call    PRINT
+
+DRAW_SLOT_3:
+        #ESPADA
+        
+        #--> DESENHAR MOLDURA
+        la      a0, moldura
+        li      a1, 288         
+        li      a2, 8
+        mv      a3, s0
+        call    PRINT
+        
+        #VERIFICAR ESPADA
+        la      t0, HAS_SWORD
+        lb      t0, 0(t0)
+        beq     t0, zero, FIM_HUD
+        
+        # print espada
+        la      a0, espada
+        li      a1, 292         # 288 + 4 para centralizar
+        li      a2, 8
+        call    PRINT
 
 FIM_HUD:
-    lw ra, 0(sp)
-    addi sp, sp, 4
-    ret
+        lw      ra, 0(sp)
+        addi    sp, sp, 4
+        ret
+
+# Desenhar LOJA
+
+DESENHAR_LOJA:
+        # Verificar se estamos na Dungeon
+        lw      t0, CURR_MAP_IMG     
+        la      t1, dungeon          
+        bne     t0, t1, FIM_DESENHO_LOJA 
+
+        addi    sp, sp, -4
+        sw      ra, 0(sp)
+
+        #ESCUDO
+        
+        la      t0, SOLD_SHIELD
+        lb      t0, 0(t0)
+        bne     t0, zero, ERASE_SHIELD  # Se vendido, VAI PARA O APAGAMENTO
+        
+        # Desenhar Normal
+        la      a0, escudo
+        li      a1, 100
+        li      a2, 120
+        mv      a3, s0
+        call    PRINT
+        
+        # Preço "50"
+        la      a0, num5
+        li      a1, 92
+        li      a2, 104
+        call    PRINT
+        la      a0, num0
+        li      a1, 108
+        call    PRINT
+        j       CHECK_KEY_DRAW
+
+ERASE_SHIELD:
+        # Apagar 
+        la      a0, preto       # Carrega o sprite do chão
+        mv      a3, s0
+        
+        li      a1, 100         # Apaga Item
+        li      a2, 120
+        call    PRINT
+        
+        li      a1, 92          # Apaga Preço Esq
+        li      a2, 104
+        call    PRINT
+        
+        li      a1, 108         # Apaga Preço Dir
+        call    PRINT
+
+        #CHAVE
+        
+CHECK_KEY_DRAW:
+        la      t0, SOLD_KEY
+        lb      t0, 0(t0)
+        bne     t0, zero, ERASE_KEY
+        
+        # Desenhar
+        la      a0, chave
+        li      a1, 160
+        li      a2, 120
+        mv      a3, s0
+        call    PRINT
+        
+        # Preço "80"
+        la      a0, num8
+        li      a1, 152
+        li      a2, 104
+        call    PRINT
+        la      a0, num0
+        li      a1, 168
+        call    PRINT
+        j       CHECK_HEART_DRAW
+
+ERASE_KEY:
+        # Apagar
+        la      a0, preto
+        mv      a3, s0
+        
+        li      a1, 160
+        li      a2, 120
+        call    PRINT
+        
+        li      a1, 152
+        li      a2, 104
+        call    PRINT
+        
+        li      a1, 168
+        call    PRINT
+
+        #CORACAO
+CHECK_HEART_DRAW:
+        la      t0, SOLD_HEART
+        lb      t0, 0(t0)
+        bne     t0, zero, ERASE_HEART
+        
+        # Desenhar
+        la      a0, coracao
+        li      a1, 220
+        li      a2, 120
+        mv      a3, s0
+        call    PRINT
+        
+        # Preço "10"
+        la      a0, num1
+        li      a1, 212
+        li      a2, 104
+        call    PRINT
+        la      a0, num0
+        li      a1, 228
+        call    PRINT
+        j       FIM_DESENHO_LOJA_RET
+
+ERASE_HEART:
+        # Apagar
+        la      a0, preto
+        mv      a3, s0
+        
+        li      a1, 220
+        li      a2, 120
+        call    PRINT
+        
+        li      a1, 212
+        li      a2, 104
+        call    PRINT
+        
+        li      a1, 228
+        call    PRINT
+
+FIM_DESENHO_LOJA_RET:
+        lw      ra, 0(sp)
+        addi    sp, sp, 4
+FIM_DESENHO_LOJA:
+        ret
 
 # ========================= #
 #   Procedimento de ataque  #
@@ -1117,3 +1482,17 @@ REINICIAR_HARPA:
     
 FIM_MUSICA:
     ret
+    
+TOCAR_KACHING:
+        li      a7, 31          # Midi Out
+        li      a2, 11          # Instrumento
+        li      a3, 127         # Volume
+
+        li      a0, 84
+        li      a1, 100
+        ecall
+
+        li      a0, 90
+        li      a1, 300
+        ecall
+        ret
