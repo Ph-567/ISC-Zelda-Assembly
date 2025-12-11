@@ -87,6 +87,9 @@ NOTAS_HARPA:
 	.include "sprites/mapa3.s"
 	
 	.align 2
+	.include "sprites/mapafinal.s"
+	
+	.align 2
 	.include "sprites/dungeon.s"
 	
 	.align 2
@@ -104,6 +107,24 @@ NOTAS_HARPA:
 	.align 2
 	.include "sprites/octorok.s"
  
+ 	.align 2
+	.include "sprites/puzzle.s"
+	
+	.align 2
+	.include "sprites/moblin.s"
+	
+	.align 2
+	.include "sprites/pedra.s"
+	 
+	.align 2
+	.include "sprites/inicial.s"
+	 
+	.align 2
+	.include "sprites/gameover.s"
+	
+	.align 2
+	.include "sprites/gate.s"
+	
 # ===================== #
 # MOVIMENTACAO
 
@@ -120,7 +141,14 @@ HAS_SWORD:		.byte 0		# Flag de estado: 0 = No mapa, 1 = Já foi pega
 # ===================== #
 # HUD
 VIDAS: 		.byte 3		#flag para vidas
-RUPY:		.half 50		#flag para moedas
+.align 2
+RUPY:		.word 50		#flag para moedas
+
+# ===================== #
+
+# PUZZLE
+CRISTAL_POS:		.half 272, 128	# Coordenadas puzzle
+FEZ_PUZZLE:		.byte 0		# Flag se concluiu puzzle
 
 # ===================== #
 # NUMEROS
@@ -133,7 +161,7 @@ VETOR_NUMEROS:			#vetor para facilitar o uso dos numeros
 LINK_DIR: 		.byte 0 	# 0=Baixo, 1=Cima, 2=Esq, 3=Dir (Inicia olhando pra baixo)
 TIMER_ATAQUE: 		.byte 0 	# Contador de frames do ataque (0 = Nao atacando)
 POS_ATAQUE: 		.half 0, 0 	# X, Y de onde a espada foi desenhada (para apagar)
-CLEANUP_FRAMES: 	.byte 0
+CLEANUP_FRAMES: 	.byte 0		
 
 # ===================== #
 # LOJA
@@ -147,27 +175,47 @@ HAS_KEY: 		.byte 0 	# 0 = Nao, 1 = Sim
 HAS_SHIELD: 		.byte 0 	# 0 = Nao, 1 = Sim (Vida Extra)
 
 # =========================== #
-# DADOS DO INIMIGO E COMBATE
+# DADOS DOS INIMIGOS E COMBATE
 
-INIMIGO_POS: 		.half 160, 144 	# Posição Inicial X, Y
-OLD_INI_POS: 		.half 160, 144 	# Para limpar o rastro
-INIMIGO_VIVO: 		.byte 1 	# 1 = Vivo, 0 = Morto
+# OCTOROK
+OCTOROK_POS: 		.half 160, 144 	# Posição Inicial X, Y
+OLD_OCT_POS: 		.half 160, 144 	# Para limpar o rastro
+OCTOROK_VIVO: 		.byte 1 	# 1 = Vivo, 0 = Morto
+.align 2
+OCT_VEL_X: 		.word -8 	# Velocidade horizontal
+OCT_VEL_Y: 		.word -8 	# Velocidade vertical
+
+# MOBLIN 
+MOBLIN_POS:		.half 160, 80 	# Posicao Inicial X, Y 
+OLD_MOBLIN_POS: 	.half 160, 80	# Posicao Anterior
+MOBLIN_VIVO: 		.byte 1 	# 1 = Vivo, 0 = Morto
+TIMER_TIRO_MOBLIN: 	.byte 45 	# Timer para proximo tiro
+MOBLIN_DIR: 		.byte 0 	# Direcao do Moblin
+
+# PROJETIL
+.align 2
+STONE_POS: 		.word 0 	# Posicao da pedra
+.align 2
+OLD_STONE_POS:		.word 0, 0	# Posicao Anterior da pedra
+.align 2
+STONE_VEL_X: 		.word 0 	# Velocidade horizontal da pedra
+STONE_VEL_Y: 		.word 0 	# Velocidade vertical da pedra
+STONE_ACTIVE: 		.byte 0 	# Verifica se a pedra ainda existe	
+.align 2
+LAST_STONE_FRAME_0: 	.word 0 	
+.align 2
+LAST_STONE_FRAME_1: 	.word 0 	
+STONE_SPRITE: .word pedra
+
+# Drops (inimigos dropam rupys quando morrem)
+DROP_POS:       .word 0, 0      # X, Y da rupy
+DROP_ACTIVE:    .word 0         # 0 = nada, 1 = tem rupy no chão
 
 # Timers
-TIMER_MOV_INI: 		.byte 0 	# Controla a VELOCIDADE (Delay)
+TIMER_MOV_OCT: 		.byte 0 	# Controla a VELOCIDADE (Delay)
 TIMER_MUDAR_DIR: 	.byte 0 	# Controla a mudança de direção aleatória
 TIMER_INVUL: 		.byte 0 	# Tempo que o Link fica invulnerável após levar dano
 
-# Velocidades (Usei .word para evitar desalinhamento)
-	.align 2
-INI_VEL_X: 		.word 16 	# Começa movendo para direita
-INI_VEL_Y: 		.word 0 	# Começa parado no Y
-
-
-#Pra funcionar a colis?o, precisa fazer um mapa de colis?o 20x15. Cada valor desse mapa representa um tile 16x16
-#1 - tem obst?culo
-#0 - n tem
-#  numeros maiores que 1 indicam mudança de mapa, direcionando para um mapa especifico de acordo com o numero
 
 mapa1_colisao:
 
@@ -192,12 +240,12 @@ mapa2_colisao:
 .byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 .byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 .byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-.byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+.byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 .byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
 .byte 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
 .byte 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1
 .byte 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1
-.byte 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1
+.byte 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1
 .byte 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1
 .byte 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1
 .byte 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
@@ -214,7 +262,7 @@ mapa3_colisao:
 .byte 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
 .byte 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
 .byte 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1
-.byte 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1
+.byte 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 8, 1, 0, 0, 1, 1, 0, 0, 0, 1
 .byte 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
 .byte 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
 .byte 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
@@ -241,6 +289,26 @@ dungeon_colisao:
 .byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1
 .byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 7, 7, 7, 1, 1, 1, 1, 1, 1, 1, 1
 
+
+mapafinal_colisao:
+
+
+.byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+.byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+.byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+.byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+.byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
+.byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
+.byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+.byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+.byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+.byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+.byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+.byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
+.byte 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
+.byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+.byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+
 # --- GERENCIAMENTO DE MAPAS ---
 
 # Ponteiros para o mapa atual (Inicializados com Mapa 1)
@@ -259,6 +327,7 @@ PORTAL_TABLE:
 	.word 5, dungeon, dungeon_colisao, 160, 208, preto # Saída do Mapa 1 p/ Dungeon
 	.word 6, mapa2, mapa2_colisao, 144, 64, tile 	# Saída do Mapa 3 p/ Mapa 2
 	.word 7, mapa1, mapa1_colisao, 144, 48, tile 	# Saída da Dungeon p/ Mapa 1
+	.word 8, mapafinal, mapafinal_colisao, 160, 128, tile
 	.word 0 					# Fim da tabela
 
 
@@ -267,6 +336,24 @@ PORTAL_TABLE:
 
 MAIN:   # Mapa ---------
 
+	
+	la a0, inicial			# imprime a tela inicial
+	li a1, 0
+	li a2, 0
+	li a3, 0
+	call PRINT			
+	li a3,1				
+	call PRINT			
+	
+	LOOP_INICIAL:
+	
+	li t1,0xFF200000		# carrega o endere o de controle do KDMMIO
+	lw t0,0(t1)			# Le bit de Controle Teclado # endereco da flag tecla apertada 
+ 	andi t0,t0,0x0001		# mascara o bit menos significativo
+ 					# (l? do endereco controle de teclado uma flag (0 = tecla apertada | 1 = tecla apertada)			
+ 	beq t0,zero,LOOP_INICIAL	# se nao aperta nenhuma tecla segue na tela inicial, mas se apertar começa o jogo
+ 	
+	 
 	lw a0, CURR_MAP_IMG 		#carrega a imagem do mapa atual
 	li a1, 0
 	li a2, 0
@@ -289,6 +376,7 @@ MAIN:   # Mapa ---------
 	li a3, 1			# no frame 1
 	call PRINT
 	
+
 	# HUD ------
 	la a0, preto 			# Sprite preto
 	li a2, 0 			# Y = 0 (Linha 1)
@@ -374,28 +462,55 @@ FIM_HUD_LINHA2:
  	sw a0, 4(t0)
 	
 
-GAME_LOOP: 
-	call 	KEY_SELECT
+GAME_LOOP:
+
  
+  	lw t0, CURR_MAP_IMG	# Verifica se está na tela final
+    	la t1, mapafinal
+    	beq t0,t1, SAIR_DO_JOGO	# Caso esteja acaba
+    	
+    	la t2, mapa2		# Verifica se está no mapa 2	
+    	bne t0, t2, NAO_PUZZLE
+    	la t3, FEZ_PUZZLE	# Caso esteja, quer dizer que e o mapa onde tem o puzzle
+    	lb t3, 0(t3)		
+    	bne t3, zero, NAO_PUZZLE
+    	
+    	call PRINT_GRADE 	# Se o puzzle não tiver sido completo, bloqueia a passagem pro mapa 3
+    	
+    	NAO_PUZZLE: 
+    	
+	call 	KEY_SELECT 
+ 	
+ 	
 	# Alternar Frame
 	xori 	s0, s0, 1 
  
 	#LIMPEZA
 	call 	GERENCIAR_RASTRO
-
+	call    CHECAR_FEZ_PUZZLE
 	# Logicas do Jogo
 	call 	CHECAR_PEGOU_ESPADA
 	call 	TOCAR_MUSICA
-
+	call CHECAR_PEGOU_DROP
+	
 	# Inimigos
-	call 	ATUALIZAR_INIMIGO 
+	call 	ATUALIZAR_OCTOROK 
 	call 	CHECAR_DANO 
-	call 	CHECAR_HIT_INIMIGO 
-
+	call 	CHECAR_HIT_OCTOROK 
+	call 	ATUALIZAR_MOBLIN        
+    	call 	ATUALIZAR_PEDRA         
+    	call 	CHECAR_DANO_PEDRA
+	call 	CHECAR_HIT_MOBLIN
+    	call 	DESENHAR_DROP
+    	
+	# Puzzle
+	call	CHECAR_HIT_PUZZLE
+	  	
 	# Loja e Cenário
 	call 	CHECAR_LOJA 
 	call 	DESENHAR_LOJA 
 	call 	DESENHAR_ATAQUE 
+ 
  
 	# Desenha o Link
 	la 	t0, CHAR_POS
@@ -413,12 +528,13 @@ GAME_LOOP:
 	sw 	s0, 0(t2)
  
 	j 	GAME_LOOP
+	
 # =============================
 # Procedimentos de Movimentacao
 
 KEY_SELECT: 
 
-	li t1,0xFF200000		# carrega o endere o de controle do KDMMIO
+	li t1,0xFF200000		# carrega o endereco de controle do KDMMIO
 	
 	# VERIFICAR SE JA ESTA ATACANDO (Bloqueio)
 	la t0, TIMER_ATAQUE
@@ -695,6 +811,7 @@ CHAR_BAIXO:
 		ret
 		p1b:	la s2, baixo
 			ret
+
 # ================= #
 # PROCEDIMENTO para o mapa
 
@@ -712,59 +829,212 @@ LOOP_PORTAL:
  	j LOOP_PORTAL
 
 ACHOU_PORTAL:
- 	# t0 aponta para a linha correta da tabela
- 	 
- 	# 1. Atualizar Endereço da Imagem
- 	lw t1, 4(t0) 			# Carrega endereço da imagem do mapa
- 	la t2, CURR_MAP_IMG
- 	sw t1, 0(t2) 			# Salva na variavel global
- 	 
- 	# 2. Atualizar Endereço da Colisão
- 	lw t1, 8(t0) 			# Carrega endereço da colisão
- 	la t2, CURR_MAP_COL
- 	sw t1, 0(t2)			# Salva na variavel global
- 	 
- 	# 3. Atualizar Posição do Link
- 	lw t1, 12(t0) 			# Novo X
- 	lw t2, 16(t0) 			# Novo Y
- 	la t3, CHAR_POS
- 	sh t1, 0(t3)			# Salva X na variavel global
- 	sh t2, 2(t3)			# Salva Y na variavel global
- 	 
- 	# 4. Carrega OLD_POS também 
- 	la t3, OLD_CHAR_POS
- 	sh t1, 0(t3) 			# Salva na variavel global
- 	sh t2, 2(t3) 			# Salva na variavel global
+    # t0 aponta para a linha correta da tabela
+    
+    # --- VERIFICAÇÃO DE CHAVE PARA O MAPA 8 ---
+    lw t1, 0(t0)            # Carrega o ID do portal
+    li t2, 8                # ID do Mapa Final
+    bne t1, t2, CARREGAR_MAPA_NORMAL # Se não for o 8, segue normal
+    
+    # Se for o 8, verifica a chave
+    la t2, HAS_KEY
+    lb t2, 0(t2)            # Carrega o VALOR (0 ou 1) de HAS_KEY
+    beq t2, zero, FIM_MUDANCA # Se for 0 (sem chave), CANCELA (volta pro game loop)
 
- 	# 5. Carrega o tile usado nesse mapa
- 	 
- 	lw t1, 20(t0)
- 	la t2, CURR_MAP_TILE
- 	sw t1, 0(t2)			# Salva na variavel global
- 	 
- 	# 6. Forçar Pintura do Novo Mapa (Frames 0 e 1)
- 	# Isso apaga o mapa velho da tela imediatamente
- 	 
- 	addi sp, sp, -4
- 	sw ra, 0(sp) 			# Salva RA pois vamos chamar PRINT
- 	 
- 	lw a0, CURR_MAP_IMG 		# Imagem nova
- 	li a1, 0
- 	li a2, 0
- 	 
- 	li a3, 0 			# Frame 0
- 	call PRINT
- 	li a3, 1 			# Frame 1
- 	call PRINT
- 	 
- 	lw ra, 0(sp)
- 	addi sp, sp, 4
- 	 
+CARREGAR_MAPA_NORMAL:
+  
+    lw t1, 4(t0)            # Carrega endereço da imagem do mapa
+    la t2, CURR_MAP_IMG
+    sw t1, 0(t2)            # Salva na variavel global
+    lw t1, 8(t0)            # Carrega endereço da colisão
+    la t2, CURR_MAP_COL
+    sw t1, 0(t2)            
+    
+    lw t1, 12(t0)           # Novo X do link
+    lw t2, 16(t0)           # Novo Y do link
+    la t3, CHAR_POS
+    sh t1, 0(t3)         
+    sh t2, 2(t3)          
+    
+    la t3, OLD_CHAR_POS
+    sh t1, 0(t3)            # Inicializa com a nova coordenada do link pois trocou de mapa
+    sh t2, 2(t3)            
+
+    lw t1, 20(t0)           
+    la t2, CURR_MAP_TILE	# Atualiza a tile para a correspondente ao mapa
+    sw t1, 0(t2)           
+    
+    
+    # Printa o mapa novo em ambos os frames
+    addi sp, sp, -4
+    sw ra, 0(sp)            
+    
+    lw a0, CURR_MAP_IMG     
+    li a1, 0
+    li a2, 0
+    
+    li a3, 0             
+    call PRINT
+    li a3, 1                
+    call PRINT
+    
+    lw ra, 0(sp)
+    addi sp, sp, 4
+    
 FIM_MUDANCA:
- 	# Retorna para o GAME_LOOP indiretamente (pois viemos de um Jump na movimentação)
- 	# Como usamos 'j MUDAR_MAPA' dentro de CHAR_DIR, o stack pointer já foi limpo lá.
- 	j GAME_LOOP
+    j GAME_LOOP
+
+
+CHECK_MAPAFINAL:
+	li t1, 1
+	la t2, HAS_KEY		# Verifica se o jogador tem a chave, ou seja, se pode acessar a tela final (acabar o jogo)
+	bne t1,t2, GAME_LOOP
+	ret
+	
+PRINT_GRADE:
+	addi sp, sp, -4 		#uma vez que chamaremos print e perderemos o endereco de retorno,
+	 		 		#salva o endereco de retorn em sp que depois sera restaurado
+	sw ra, 0(sp)
+	la a0, gate			
+	li a1, 144			# Printa uma grade na posição exata da passagem para o mapa 3
+	li a2, 48
+	li a3, 0			
+	call PRINT
+	li a3, 1			
+	call PRINT
+	
+	# Printa o cristal do puzzle
+	la t0, CRISTAL_POS		
+	la a0, puzzle			
+	lh a1, 0(t0)				
+	lh a2, 2(t0)			
+	li a3, 0			
+	call PRINT
+	li a3, 1			
+	call PRINT
+	
+	# Recupera o endereço de retorno (gameloop)
+	lw ra, 0(sp)
+	addi sp, sp, 4
+	ret
+	
+CHECAR_FEZ_PUZZLE:
+	la t0, FEZ_PUZZLE
+	lbu t0, 0(t0)
+	beq t0, zero, FIM_CHECAR_PUZZLE  #Se não fez o puzzle sai
+ 	
+ 	lw t0, CURR_MAP_IMG
+	la t2, mapa2
+    	bne t0, t2, FIM_CHECAR_PUZZLE	# Se fez o puzzle mas não esta no mapa 2 sai 	
+    	
+
+	
+	addi sp, sp, -4 		#uma vez que chamaremos print e perderemos o endereco de retorno,
+	 		 		#salva o endereco de retorn em sp que depois sera restaurado
+	sw ra, 0(sp)
+	
+	la a0, tile			# Carrega o sprite tile	
+	li a1, 144			# x da grade
+	li a2, 48			# y da grade
+
+	# Apaga as grades da passagem
+	li a3, 0			
+	call PRINT			
+	
+	li a3, 1			
+	call PRINT			
+	
+	# Libera a passagem no mapa de colisão
+	la t0, mapa2_colisao    # Carrega o endereço base do mapa
+	li t1, 69               # Localiza o tile da passagem no mapa (Linha 3 * 20) + Coluna 9
+	add t0, t0, t1          # Soma para achar o endereço exato do byte
+	sb zero, 0(t0)		# Seta o tile pra 0 (tile livre)
+	
+	# Tira a colisão do cristal do puzzle no mapa de colisão
+	la t0, mapa2_colisao    # Carrega o endereço base do mapa
+	li t1, 177               # Localiza o cristal no mapa de colisão
+	add t0, t0, t1          # Soma para achar o endereço exato do byte
+	sb zero, 0(t0)		# Seta o tile pra 0 (tile livre)
+	
+	#restaura o endereco de retorno para o game_loop
+	lw ra, 0(sp)
+	addi sp, sp, 4
+	
+FIM_CHECAR_PUZZLE: ret
+   	 
+CHECAR_HIT_PUZZLE:
+	
+	# Salva endereco de retorno
+ 	addi 	sp, sp, -4
+ 	sw 	ra, 0(sp)
  	 
+ 	# Só checa se estiver atacando
+ 	la 	t0, TIMER_ATAQUE
+ 	lb 	t1, 0(t0)
+ 	beq 	t1, zero, FIM_HIT_PUZZLE
+ 	 
+ 	# Só checa se o puzzle nao tiver sido completado ainda
+ 	la 	t0, FEZ_PUZZLE
+ 	lb 	t1, 0(t0)
+ 	bne	t1, zero, FIM_HIT_PUZZLE
+ 	 
+ 	# Colisão: POS_ATAQUE vs CRISTAL_POS
+ 	la 	t0, POS_ATAQUE
+ 	lh 	t1, 0(t0) 	# Espada X
+ 	lh 	t2, 2(t0) 	# Espada Y
+ 	 
+ 	la 	t0, CRISTAL_POS
+ 	lh 	t3, 0(t0) 	# Cristal X
+ 	lh 	t4, 2(t0) 	# Cristal Y
+ 	 
+ 	# Distância X < 16
+ 	sub 	t5, t1, t3
+ 	bgez 	t5, P_X
+ 	neg 	t5, t5
+P_X:
+ 	li 	t6, 16 
+ 	bge 	t5, t6, FIM_HIT_PUZZLE
+ 	 
+ 	# Distância Y < 16
+ 	sub 	t5, t2, t4
+ 	bgez 	t5, P_Y
+ 	neg 	t5, t5
+P_Y:
+ 	li 	t6, 16
+ 	bge 	t5, t6, FIM_HIT_PUZZLE
+ 	 
+ 	# Destruiu o cristal
+ 	la 	t0, FEZ_PUZZLE
+ 	li	t1, 1
+ 	sb 	t1, 0(t0)
+ 	 
+	# Apaga o cristal  
+	la t0, CRISTAL_POS
+	lw a0, CURR_MAP_TILE
+	lh a1, 0(t0)
+	lh a2, 2(t0)
+    
+	addi sp, sp, -12
+	sw a0, 0(sp)
+	sw a1, 4(sp)
+	sw a2, 8(sp)
+    
+	li a3, 0
+	call PRINT          
+    
+	lw a0, 0(sp)
+	lw a1, 4(sp)
+	lw a2, 8(sp)
+	addi sp, sp, 12
+    
+	li a3, 1
+	call PRINT          
+
+FIM_HIT_PUZZLE:
+    lw ra, 0(sp)
+    addi sp, sp, 4
+    ret   	
+       	 
 # ========================
 #PROCEDIMENTOS DE COLISAO
  	 
@@ -882,12 +1152,12 @@ SHIELD_Y_OK:
 
  	# Check Dinheiro
  	la 	t0, RUPY
- 	lh 	t6, 0(t0)
+ 	lw 	t6, 0(t0)
  	blt 	t6, t5, CHECK_KEY_BUY
 
  	# COMPRA!
  	sub 	t6, t6, t5
- 	sh 	t6, 0(t0)
+ 	sw 	t6, 0(t0)
 
  	li 	t6, 1
  	la 	t0, SOLD_SHIELD
@@ -922,11 +1192,11 @@ KEY_Y_OK:
  	bgt 	t0, s11, CHECK_HEART_BUY
 
  	la 	t0, RUPY
- 	lh 	t6, 0(t0)
+ 	lw 	t6, 0(t0)
  	blt 	t6, t5, CHECK_HEART_BUY
 
  	sub 	t6, t6, t5
- 	sh 	t6, 0(t0)
+ 	sw 	t6, 0(t0)
 
  	li 	t6, 1
  	la 	t0, SOLD_KEY
@@ -961,11 +1231,11 @@ HEART_Y_OK:
  	bgt 	t0, s11, RET_LOJA
 
  	la 	t0, RUPY
- 	lh 	t6, 0(t0)
+ 	lw 	t6, 0(t0)
  	blt 	t6, t5, RET_LOJA
 
  	sub 	t6, t6, t5
- 	sh 	t6, 0(t0)
+ 	sw 	t6, 0(t0)
 
  	li 	t6, 1
  	la 	t0, SOLD_HEART
@@ -1115,12 +1385,12 @@ FIM_CORACOES:
  	# --- 4. NUMEROS ---
  	la 	t0, RUPY
  	lh 	t0, 0(t0)
- 	li 	t1, 10
  	li 	a1, 96
  	li 	a2, 16
  	li 	t4, 3
 
 LOOP_RUPIAS:
+	li 	t1, 10
  	rem 	t2, t0, t1
  	div 	t0, t0, t1
  	 
@@ -1401,7 +1671,7 @@ DESENHAR_ATAQUE:
  	beq 	a1, zero, VERIFICAR_ESTADO 
  	 
  	# Apaga desenhando o chão
- 	la 	a0, tile 
+ 	lw 	a0, CURR_MAP_TILE 
  	mv 	a3, s0 			# Frame atual
  	 
  	addi 	sp, sp, -4 		# Salva t0
@@ -1499,309 +1769,303 @@ FIM_ATQ:
  	ret
  	 
 # ========================= #
-# PROCEDIMENTO do inimigo
+# 	  INIMIGO	    #
+# ========================= #
 
-# ==========================================
-# MOVIMENTAÇÃO DO INIMIGO (CORRIGIDO: SEM PONTO E VÍRGULA)
-# ==========================================
+ATUALIZAR_OCTOROK:
+	addi 	sp, sp, -4
+	sw 	ra, 0(sp)
 
-ATUALIZAR_INIMIGO:
- 	addi 	sp, sp, -4
- 	sw 	ra, 0(sp)
+	# Checa se esta no mapa certo (o octorok so spawna no mapa 1)
+	lw 	t0, CURR_MAP_IMG
+	la 	t1, mapa1 		
+	bne 	t0, t1, FIM_UPDATE_OCT
 
- 	# 1. CHECK DE MAPA
- 	lw 	t0, CURR_MAP_IMG
- 	la 	t1, mapa1 		# <--- Confirme se é o mapa certo
- 	bne 	t0, t1, FIM_UPDATE_INI 
+	# Verifica se o Octorok ainda ta vivo
+	la 	t0, OCTOROK_VIVO
+	lb 	t1, 0(t0)
+	beq 	t1, zero, FIM_UPDATE_OCT
 
- 	# 2. Verifica se está vivo
- 	la 	t0, INIMIGO_VIVO
- 	lb 	t1, 0(t0)
- 	beq 	t1, zero, FIM_UPDATE_INI
+	# Limpeza do rastro
+	la 	t0, OLD_OCT_POS 
+	lw 	a0, CURR_MAP_TILE 
+	lh 	a1, 0(t0) 
+	lh 	a2, 2(t0) 
+	mv 	a3, s0 			
+	
+	addi 	sp, sp, -4
+	sw 	t0, 0(sp)
+	call 	PRINT
+	lw 	t0, 0(sp)
+	addi 	sp, sp, 4
 
- 	# --- LIMPEZA DO RASTRO ---
- 	la 	t0, OLD_INI_POS 
- 	lw 	a0, CURR_MAP_TILE 
- 	lh 	a1, 0(t0) 
- 	lh 	a2, 2(t0) 
- 	mv 	a3, s0 			# Frame oculto
- 	 
- 	# Expandido:
- 	addi 	sp, sp, -4
- 	sw 	t0, 0(sp)
- 	call 	PRINT
- 	lw 	t0, 0(sp)
- 	addi 	sp, sp, 4
+	# Atualiza posicao antiga
+	la 	t0, OCTOROK_POS
+	lh 	t1, 0(t0) 		
+	lh 	t2, 2(t0) 		
+	la 	t3, OLD_OCT_POS
+	sh 	t1, 0(t3)
+	sh 	t2, 2(t3)
 
- 	# --- SALVA POSIÇÃO VELHA ---
- 	la 	t0, INIMIGO_POS
- 	lh 	t1, 0(t0) 		# X atual
- 	lh 	t2, 2(t0) 		# Y atual
- 	la 	t3, OLD_INI_POS
- 	sh 	t1, 0(t3)
- 	sh 	t2, 2(t3)
+	# Controle de velocidade
+	la 	t0, TIMER_MOV_OCT
+	lb 	t1, 0(t0)
+	bne 	t1, zero, DEC_TIMER_MOV
+	
+	li 	t1, 2 			
+	sb 	t1, 0(t0)
 
- 	# --- CONTROLE DE VELOCIDADE ---
- 	la 	t0, TIMER_MOV_INI
- 	lb 	t1, 0(t0)
- 	bne 	t1, zero, DEC_TIMER_MOV
- 	 
- 	li 	t1, 25 			# Delay
- 	sb 	t1, 0(t0)
 
- 	# --- IA: DECISÃO ---
- 	la 	t0, TIMER_MUDAR_DIR 
- 	lb 	t1, 0(t0)
- 	beq 	t1, zero, SORTEAR_DIRECAO
- 	addi 	t1, t1, -1
- 	sb 	t1, 0(t0) 
- 	j 	CALCULAR_MOVIMENTO
-
-SORTEAR_DIRECAO:
- 	# Sorteia passos entre 5 e 20
- 	li 	a7, 30
- 	ecall
- 	andi 	t1, a0, 0x04 		# 0 a 4
- 	addi 	t1, t1, 5 		# 5 a 9
- 	sb 	t1, 0(t0) 		# Salva no timer
- 	 
- 	# Sorteia Direção (0-3)
- 	andi 	t2, a0, 3 
- 	 
- 	la 	t3, INI_VEL_X
- 	la 	t4, INI_VEL_Y
- 	sw 	zero, 0(t3) 		# Zera velocidades
- 	sw 	zero, 0(t4)
- 	li 	t5, 16 			# Velocidade base
-
- 	beq 	t2, zero, SET_DIR 	# 0 = Dir (+X)
- 	li 	t6, 1
- 	beq 	t2, t6, SET_ESQ 	# 1 = Esq (-X)
- 	li 	t6, 2
- 	beq 	t2, t6, SET_BAIXO 	# 2 = Baixo (+Y)
- 	j 	SET_CIMA 		# 3 = Cima (-Y)
-
-SET_DIR:
- 	sw 	t5, 0(t3)
- 	j 	CALCULAR_MOVIMENTO
-SET_ESQ:
- 	neg 	t5, t5
- 	sw 	t5, 0(t3)
- 	j 	CALCULAR_MOVIMENTO
-SET_BAIXO:
- 	sw 	t5, 0(t4)
- 	j 	CALCULAR_MOVIMENTO
-SET_CIMA:
- 	neg 	t5, t5
- 	sw 	t5, 0(t4)
- 	j 	CALCULAR_MOVIMENTO
-
+# ==================================== #
+#  Procedimento pra calcular movimento #
+# ==================================== #
 CALCULAR_MOVIMENTO:
- 	# --- EIXO X ---
- 	la 	t0, INIMIGO_POS
- 	lh 	t1, 0(t0) 		# X
- 	la 	t3, INI_VEL_X
- 	lw 	t4, 0(t3) 		# Vel X
- 	beq 	t4, zero, EIXO_Y
- 	 
- 	add 	a1, t1, t4 		# Futuro X
- 	lh 	a2, 2(t0) 		# Y atual
- 	 
- 	# Checa Colisão X
- 	addi 	sp, sp, -12
- 	sw 	t0, 0(sp)
- 	sw 	t1, 4(sp)
- 	sw 	t4, 8(sp)
- 	 
- 	srai 	t3, a1, 4
- 	srai 	t4, a2, 4
- 	jal 	CHECAR_COLISAO
- 	 
- 	lw 	t4, 8(sp)
- 	lw 	t1, 4(sp)
- 	lw 	t0, 0(sp)
- 	addi 	sp, sp, 12
- 	 
- 	bne 	t5, zero, BOUNCE_X 	# Se bater, INVERTE
- 	sh 	a1, 0(t0) 		# Se livre, move
- 	j 	EIXO_Y
+	
+	# Calcula nova posição x (pos atual + velocidade)
+	la 	t0, OCTOROK_POS
+	lh 	t1, 0(t0) 		
+	la 	t3, OCT_VEL_X
+	lw 	t4, 0(t3) 		
+	add 	a1, t1, t4 		
+	
+	# Checa Colisão X
+	lh 	a2, 2(t0) 		
+	
+	
+	# Se Vel > 0 (Direita), checamos o pixel X+15 
+	# Se Vel < 0 (Esquerda), checamos o pixel X 
+	
+	mv 	t5, a1 			# t5 recebe a coordenada X original
+	bltz 	t4, CHECK_GRID_X 	# Se velocidade negativa, t5 já é o ponto certo
+	addi 	t5, a1, 15 		# Se positiva, t5 = X + 15 (lado direito do sprite)
+	
+CHECK_GRID_X:
+	# Salva contexto
+	addi 	sp, sp, -12
+	sw 	t0, 0(sp)
+	sw 	t1, 4(sp)
+	sw 	t4, 8(sp) 		# Salva Vel X
+	
+	# Converte coordenada de teste (t5) para Grid
+	srai 	t3, t5, 4 		# Grid X (Usando o ponto corrigido t5)
+	srai 	t4, a2, 4 		# Grid Y (Y atual)
+	jal 	CHECAR_COLISAO
+	
+	# Recupera contexto
+	lw 	t4, 8(sp)
+	lw 	t1, 4(sp)
+	lw 	t0, 0(sp)
+	addi 	sp, sp, 12
+	
+	# t5 agora contem o retorno da colisao (0 ou 1)
+	bne 	t5, zero, COLISAO_X
+	
+	# Sem colisão X: Atualiza X na memória
+	sh 	a1, 0(t0)
+	j 	EIXO_Y
 
-BOUNCE_X:
- 	neg 	t4, t4 			# Inverte sinal
- 	la 	t3, INI_VEL_X
- 	sw 	t4, 0(t3)
- 	# Zera timer para mudar direção logo
- 	la 	t5, TIMER_MUDAR_DIR
- 	sb 	zero, 0(t5)
- 	# Não atualiza posição agora
+COLISAO_X:
+	neg 	t4, t4 			# Inverte X
+	la 	t3, OCT_VEL_X
+	sw 	t4, 0(t3)
+	# Não atualiza posição X neste frame
 
+	
 EIXO_Y:
- 	# --- EIXO Y ---
- 	la 	t0, INIMIGO_POS
- 	lh 	t2, 2(t0) 		# Y
- 	lh 	t1, 0(t0) 		# X
- 	la 	t3, INI_VEL_Y
- 	lw 	t6, 0(t3) 		# Vel Y
- 	beq 	t6, zero, DESENHAR_INI
- 	 
- 	add 	a2, t2, t6 		# Futuro Y
- 	mv 	a1, t1 			# X atual
- 	 
- 	# Checa Colisão Y
- 	addi 	sp, sp, -12
- 	sw 	t0, 0(sp)
- 	sw 	t2, 4(sp)
- 	sw 	t6, 8(sp)
- 	 
- 	srai 	t3, a1, 4
- 	srai 	t4, a2, 4
- 	jal 	CHECAR_COLISAO
- 	 
- 	lw 	t6, 8(sp)
- 	lw 	t2, 4(sp)
- 	lw 	t0, 0(sp)
- 	addi 	sp, sp, 12
- 	 
- 	bne 	t5, zero, BOUNCE_Y
- 	sh 	a2, 2(t0)
- 	j 	DESENHAR_INI
+	# Calcula nova posição y (pos atual + velocidade)
+	la 	t0, OCTOROK_POS
+	lh 	t2, 2(t0) 		# Y Atual (Recarrega)
+	lh 	t1, 0(t0) 		# X Atual (Pode ter mudado acima)
+	la 	t3, OCT_VEL_Y
+	lw 	t6, 0(t3) 		
+	add 	a2, t2, t6 		
+	
+	# Checa Colisão Y
+	mv 	a1, t1 			
+	
 
-BOUNCE_Y:
- 	neg 	t6, t6 			# Inverte sinal
- 	la 	t3, INI_VEL_Y
- 	sw 	t6, 0(t3)
- 	la 	t5, TIMER_MUDAR_DIR
- 	sb 	zero, 0(t5)
- 	j 	DESENHAR_INI
+	# Se Vel > 0 (Baixo), checamos Y+15 (Pés)
+	# Se Vel < 0 (Cima), checamos Y (Cabeça)
+	mv 	t5, a2 			# t5 recebe a coordenada Y original
+	bltz 	t6, CHECK_GRID_Y
+	addi 	t5, a2, 15 		# Se positivo, t5 = Y + 15 (Pés)
+	
+CHECK_GRID_Y:
+	addi 	sp, sp, -12
+	sw 	t0, 0(sp)
+	sw 	t2, 4(sp)
+	sw 	t6, 8(sp) 		# Salva Vel Y
+	
+	srai 	t3, a1, 4 		# Grid X (X atual)
+	srai 	t4, t5, 4 		# Grid Y (Usando Y corrigido t5)
+	jal 	CHECAR_COLISAO
+	
+	lw 	t6, 8(sp)
+	lw 	t2, 4(sp)
+	lw 	t0, 0(sp)
+	addi 	sp, sp, 12
+	
+	bne 	t5, zero, COLISAO_Y
+	
+	# Sem colisão Y: Atualiza Y na memória
+	sh 	a2, 2(t0)
+	j 	DESENHAR_OCT
 
+COLISAO_Y:
+	neg 	t6, t6 			# Inverte Y
+	la 	t3, OCT_VEL_Y
+	sw 	t6, 0(t3)
+	j 	DESENHAR_OCT
+
+# Timer--
 DEC_TIMER_MOV:
- 	addi 	t1, t1, -1
- 	sb 	t1, 0(t0)
+	addi 	t1, t1, -1
+	sb 	t1, 0(t0)
 
-DESENHAR_INI:
- 	# --- DESENHO ---
- 	la 	a0, octorok 
- 	la 	t0, INIMIGO_POS 
- 	lh 	a1, 0(t0)
- 	lh 	a2, 2(t0)
- 	mv 	a3, s0 			# Frame oculto
- 	 
- 	# Expandido:
- 	addi 	sp, sp, -4
- 	sw 	ra, 0(sp)
- 	call 	PRINT
- 	lw 	ra, 0(sp)
- 	addi 	sp, sp, 4
+# =================================== #
+#  Procedimento para desenhar octorok #
+# =================================== #
+DESENHAR_OCT:
+	la 	a0, octorok 
+	la 	t0, OCTOROK_POS 
+	lh 	a1, 0(t0)
+	lh 	a2, 2(t0)
+	mv 	a3, s0 			
+	
+	addi 	sp, sp, -4
+	sw 	ra, 0(sp)
+	call 	PRINT
+	lw 	ra, 0(sp)
+	addi 	sp, sp, 4
 
-FIM_UPDATE_INI:
- 	lw 	ra, 0(sp)
- 	addi 	sp, sp, 4
- 	ret
+FIM_UPDATE_OCT:
+	lw 	ra, 0(sp)
+	addi 	sp, sp, 4
+	ret
+	
 
-# ==========================================
-# HITBOX: DANO FINAL (SEM PONTO E VIRGULA)
-# ==========================================
-
+# =============================== #
+#  Procedimento ataque do octorok #
+# =============================== #
 CHECAR_DANO:
- 	addi 	sp, sp, -4
- 	sw 	ra, 0(sp)
+   	addi sp, sp, -4
+	sw ra, 0(sp)
+	
+	# Checa se o link esta invulneravel
+	la t0, TIMER_INVUL
+	lb t1, 0(t0)
+	beq t1, zero, VERIFICAR_OCTOROK_VIVO  
+    
+    	# Se timer > 0, decrementa e SAI (Link está invulnerável a tudo)
+	addi t1, t1, -1
+	sb t1, 0(t0)
+	j FIM_DANO
 
- 	# 1. Verifica se Inimigo esta Vivo
- 	la 	t0, INIMIGO_VIVO
- 	lb 	t1, 0(t0)
- 	beq 	t1, zero, FIM_DANO
+# Verifica se octorok ainda ta vivo
+VERIFICAR_OCTOROK_VIVO:
+	la t0, OCTOROK_VIVO
+	lb t1, 0(t0)
+	beq t1, zero, FIM_DANO
 
- 	# 2. Verifica Invencibilidade
- 	la 	t0, TIMER_INVUL
- 	lb 	t1, 0(t0)
- 	beq 	t1, zero, CHECK_HITBOX_LINK
- 	 
- 	# Se timer maior que 0 decrementa e sai
- 	addi 	t1, t1, -1
- 	sb 	t1, 0(t0)
- 	j 	FIM_DANO
-
+# Verifica se octorok colidiu (atacou) com o link
 CHECK_HITBOX_LINK:
- 	la 	t0, CHAR_POS
- 	lh 	t1, 0(t0)
- 	lh 	t2, 2(t0)
- 	 
- 	la 	t3, INIMIGO_POS
- 	lh 	t4, 0(t3)
- 	lh 	t5, 2(t3)
- 	 
- 	# --- CALCULO DE COLISAO X ---
- 	sub 	t6, t1, t4
- 	bgez 	t6, ABS_X_SAFE
- 	sub 	t6, zero, t6
+	la t0, CHAR_POS
+	lh t1, 0(t0)
+	lh t2, 2(t0)
+    
+	la t3, OCTOROK_POS
+	lh t4, 0(t3)
+	lh t5, 2(t3)
+    
+    # Calculo de colisao x
+    	sub t6, t1, t4
+   	bgez t6, ABS_X_SAFE
+    	neg t6, t6 # (sub t6, zero, t6)
+    	
 ABS_X_SAFE:
- 	li 	a7, 16
- 	bge 	t6, a7, FIM_DANO
+    	li a7, 16
+   	bge t6, a7, FIM_DANO
 
- 	# --- CALCULO DE COLISAO Y ---
- 	sub 	t6, t2, t5
- 	bgez 	t6, ABS_Y_SAFE
- 	sub 	t6, zero, t6
+    # Calculo de colisao y
+    	sub t6, t2, t5
+    	bgez t6, ABS_Y_SAFE
+    	neg t6, t6 # (sub t6, zero, t6)
 ABS_Y_SAFE:
- 	li 	a7, 16 
- 	bge 	t6, a7, FIM_DANO
- 	 
- 	# === COLISAO CONFIRMADA ===
- 	 
- 	# 3. Tira Vida com SEGURANCA
- 	la 	t3, VIDAS
- 	lb 	t6, 0(t3)
- 	 
- 	# Se vida for 0 nao faz nada para nao travar o HUD
- 	beq 	t6, zero, FIM_DANO
- 	 
- 	addi 	t6, t6, -1
- 	sb 	t6, 0(t3)
- 	 
- 	# 4. Ativa Invencibilidade 60 frames
- 	la 	t3, TIMER_INVUL
- 	li 	t6, 60
- 	sb 	t6, 0(t3)
- 	 
- 	# Som de Dano
- 	li 	a7, 31
- 	li 	a0, 50
- 	li 	a1, 100
- 	li 	a2, 11
- 	li 	a3, 100
- 	ecall
+    	li a7, 16 
+    	bge t6, a7, FIM_DANO
+    
+    # Colisao confirmada
+    
+    # Tira Vida do link
+   	la t3, VIDAS
+    	lb t6, 0(t3)
+    
+    # Se vida for 0 gameover
+    	beq t6, zero, GAME_OVER
+    
+    # Logica do escudo
+	la t2, HAS_SHIELD
+	lb t5, 0(t2)
+	li t4 , 1
+	beq t5, t4, SHIELD    
+	addi t6, t6, -1
+	sb t6, 0(t3)
+    
+    # Ativa Invencibilidade 60 frames
+    	la t3, TIMER_INVUL
+    	li t6, 60
+    	sb t6, 0(t3)
+    
+    # Som de Dano
+    	li a7, 31
+    	li a0, 50
+    	li a1, 100
+    	li a2, 11
+    	li a3, 100
+    	ecall
 
- 	# Atualiza HUD
- 	call 	ATUALIZAR_HUD
-
+    # Atualiza HUD
+    	call ATUALIZAR_HUD
+    
 FIM_DANO:
- 	lw 	ra, 0(sp)
- 	addi 	sp, sp, 4
- 	ret
-# ==========================================
-# HITBOX: ESPADA MATA INIMIGO (CORRIGIDO - 1 INSTRUÇÃO POR LINHA)
-# ==========================================
+    	lw ra, 0(sp)
+    	addi sp, sp, 4
+    	ret
 
-CHECAR_HIT_INIMIGO:
+SHIELD: 
+    	li t4, 0
+    	sb t4, 0(t2) # Perde o escudo
+    	#Ativa invulnerabilidade
+    	la t3, TIMER_INVUL
+    	li t6, 60
+    	sb t6, 0(t3)
+    	j FIM_DANO
+	
+
+# =================== #
+#  Ataque ao octorok  #
+# =================== #
+
+CHECAR_HIT_OCTOROK:
  	addi 	sp, sp, -4
  	sw 	ra, 0(sp)
  	 
  	# Só checa se estiver atacando
  	la 	t0, TIMER_ATAQUE
  	lb 	t1, 0(t0)
- 	beq 	t1, zero, FIM_HIT_INI
+ 	beq 	t1, zero, FIM_HIT_OCT
  	 
- 	# Só checa se inimigo vivo
- 	la 	t0, INIMIGO_VIVO
+ 	# Só checa se octorok vivo
+ 	la 	t0, OCTOROK_VIVO
  	lb 	t1, 0(t0)
- 	beq 	t1, zero, FIM_HIT_INI
+ 	beq 	t1, zero, FIM_HIT_OCT
  	 
- 	# Colisão: POS_ATAQUE vs INIMIGO_POS
+ 	# Colisão: POS_ATAQUE vs OCTOROK_POS
  	la 	t0, POS_ATAQUE
  	lh 	t1, 0(t0) 	# Espada X
  	lh 	t2, 2(t0) 	# Espada Y
  	 
- 	la 	t0, INIMIGO_POS
+ 	la 	t0, OCTOROK_POS
  	lh 	t3, 0(t0) 	# Inimigo X
  	lh 	t4, 2(t0) 	# Inimigo Y
  	 
@@ -1811,7 +2075,7 @@ CHECAR_HIT_INIMIGO:
  	neg 	t5, t5
 H_DX:
  	li 	t6, 16 
- 	bge 	t5, t6, FIM_HIT_INI
+ 	bge 	t5, t6, FIM_HIT_OCT
  	 
  	# Distância Y < 16
  	sub 	t5, t2, t4
@@ -1819,53 +2083,180 @@ H_DX:
  	neg 	t5, t5
 H_DY:
  	li 	t6, 16
- 	bge 	t5, t6, FIM_HIT_INI
+ 	bge 	t5, t6, FIM_HIT_OCT
  	 
- 	# --- MATOU! ---
- 	la 	t0, INIMIGO_VIVO
+ 	# Mata o octorok
+ 	la 	t0, OCTOROK_VIVO
  	sb 	zero, 0(t0)
  	 
- 	# Limpa o inimigo da tela (Frame 0)
- 	la 	t0, INIMIGO_POS
- 	lw 	a0, CURR_MAP_TILE
- 	lh 	a1, 0(t0)
- 	lh 	a2, 2(t0)
  	 
- 	addi 	sp, sp, -12
- 	sw 	a0, 0(sp)
- 	sw 	a1, 4(sp)
- 	sw 	a2, 8(sp)
- 	 
- 	li 	a3, 0
- 	call 	PRINT 
- 	 
- 	# Recupera argumentos
- 	lw 	a2, 8(sp)
- 	lw 	a1, 4(sp)
- 	lw 	a0, 0(sp)
- 	addi 	sp, sp, 12
- 	 
- 	# Limpa Frame 1 (necessário salvar novamente na pilha ou re-carregar)
- 	# Como PRINT destroi t0-t6 e a0-a3, vamos garantir recarregando ou salvando
- 	 
- 	addi 	sp, sp, -12
- 	sw 	a0, 0(sp)
- 	sw 	a1, 4(sp)
- 	sw 	a2, 8(sp)
- 	 
- 	li 	a3, 1
- 	call 	PRINT 
- 	 
- 	lw 	a2, 8(sp)
- 	lw 	a1, 4(sp)
- 	lw 	a0, 0(sp)
- 	addi 	sp, sp, 12
+ 	# Drop da rupy
+	la t0, DROP_ACTIVE
+	li t1, 1
+	sw t1, 0(t0)
+	    
+ 	# Limpa o inimigo da tela 
+ 	la t0, OCTOROK_POS
+	lh t1, 0(t0)        
+	lh t2, 2(t0)        
+	    
+	la t0, DROP_POS
+	sw t1, 0(t0)        # Salva em DROP X
+	sw t2, 4(t0)        # Salva em DROP Y
+	    
+ 	la t0, OCTOROK_POS
+    	lw a0, CURR_MAP_TILE
+    	lh a1, 0(t0)
+    	lh a2, 2(t0)
+    
+    	addi sp, sp, -12
+    	sw a0, 0(sp)
+    	sw a1, 4(sp)
+    	sw a2, 8(sp)
+    
+    	li a3, 0
+    	call PRINT          
+    
+    	lw a0, 0(sp)
+    	lw a1, 4(sp)
+    	lw a2, 8(sp)
+    	addi sp, sp, 12
+    
+    	li a3, 1
+    	call PRINT         
 
-FIM_HIT_INI:
- 	lw 	ra, 0(sp)
- 	addi 	sp, sp, 4
- 	ret
- 	 
+FIM_HIT_OCT:
+    	lw ra, 0(sp)
+    	addi sp, sp, 4
+    	ret
+  
+# Desenha a rupy no chao  
+DESENHAR_DROP:
+    	addi sp, sp, -4
+    	sw ra, 0(sp)
+    
+    # Verifica se drop está ativo
+    	la t0, DROP_ACTIVE
+   	 lw t1, 0(t0)
+    	beq t1, zero, FIM_DESENHO_DROP
+    
+    # Verifica se tem inimigo no mapa (so tem no 1 e 3)
+    	lw t0, CURR_MAP_IMG
+    	la t1, mapa1
+    	la t2, mapa3
+    	beq t0, t2, P
+    	bne t0, t1, FIM_DESENHO_DROP
+    
+    
+    	P:
+    # Desenha Rupy
+    	la a0, rupy
+   	la t0, DROP_POS
+    	lw a1, 0(t0)        
+    	lw a2, 4(t0)        
+    	mv a3, s0           # Frame atual
+    
+   	call PRINT
+
+FIM_DESENHO_DROP:
+    	lw ra, 0(sp)
+    	addi sp, sp, 4
+    	ret
+
+# Lógica pra pegar a rupy do chao
+CHECAR_PEGOU_DROP:
+    	addi sp, sp, -4
+    	sw ra, 0(sp)
+    
+    # Verifica se ativo
+    	la t0, DROP_ACTIVE
+    	lw t1, 0(t0)
+    	beq t1, zero, FIM_PEGOU_DROP
+    
+    # Verifica Mapa
+    	lw t0, CURR_MAP_IMG
+    	la t1, mapa1
+    	la t2, mapa3
+    	beq t0, t2, PA
+    	bne t0, t1, FIM_PEGOU_DROP
+
+    	PA:
+    # Carrega Posições
+    	la t0, CHAR_POS
+    	lh t1, 0(t0)        # Link X
+    	lh t2, 2(t0)        # Link Y
+    
+    	la t0, DROP_POS
+    	lw t3, 0(t0)        # Drop X
+    	lw t4, 4(t0)        # Drop Y
+    
+    # Distância (Colisão Link x Drop)
+    	sub t5, t1, t3
+    	bgez t5, D_DX
+    	neg t5, t5
+D_DX:
+    	li t6, 14           # Margem de coleta
+    	bge t5, t6, FIM_PEGOU_DROP
+    
+    	sub t5, t2, t4
+    	bgez t5, D_DY
+    	neg t5, t5
+D_DY:
+    	li t6, 14
+    	bge t5, t6, FIM_PEGOU_DROP
+    
+    # Pegou o drop
+    
+    # Soma o Dinheiro
+    	la t0, RUPY
+    	lw t1, 0(t0)
+     	lw t4, CURR_MAP_IMG
+    	la t2, mapa3
+    	beq t4, t2, mob
+    	addi t1, t1, 20      # +20 Rupys
+   	 sw t1, 0(t0)
+    	j octo
+    	mob:
+    	addi t1,t1,70
+    	sw t1, 0(t0)
+    	octo:
+    # Som (Kaching)
+    	call TOCAR_KACHING
+    
+    # Desativar Drop
+    	la t0, DROP_ACTIVE
+    	sw zero, 0(t0)
+    
+    # Apaga a rupy    
+    	la t0, DROP_POS
+    	lw a1, 0(t0)
+    	lw a2, 4(t0)
+    	lw a0, CURR_MAP_TILE
+    
+    	addi sp, sp, -12
+    	sw a0, 0(sp)
+    	sw a1, 4(sp)
+    	sw a2, 8(sp)
+    
+    	li a3, 0
+    	call PRINT          
+    
+    	lw a0, 0(sp)
+    	lw a1, 4(sp)
+    	lw a2, 8(sp)
+    	addi sp, sp, 12
+    
+    	li a3, 1
+    	call PRINT          
+    
+    #Atualiza a HUD
+    	call ATUALIZAR_HUD
+
+FIM_PEGOU_DROP:
+    	lw ra, 0(sp)
+    	addi sp, sp, 4
+    	ret    
+    
 # ========================= #
 #  Procedimentos da Musica  #
 	
@@ -1885,6 +2276,8 @@ TOCAR_MUSICA:
 
  	# É hora de tocar Harpa
  	beq 	s11, s5, REINICIAR_HARPA #considera quando s5 == limite da musica (tempo final) for igual ao tempo atual (notas decorridas)
+
+
 
 REINICIAR_HARPA_FIM:
  	# Carregar e tocar Harpa
@@ -2016,3 +2409,653 @@ LIMPAR_RASTRO_HISTORICO:
  	lw 	ra, 0(sp)
  	addi 	sp, sp, 4
  	ret
+ 	
+ 	
+ 	
+# ========================================== #
+# MOVIMENTACAO DO MOBLIN E LOGICA DE TIRO    #
+# (Moblin Parado - Apenas Atira)      	     #
+# ========================================== #
+
+ATUALIZAR_MOBLIN:
+	addi 	sp, sp, -4
+	sw 	ra, 0(sp)
+	
+	# CHECK DE MAPA (Apenas no mapa 3)
+	lw 	t0, CURR_MAP_IMG
+	la 	t1, mapa3
+	bne 	t0, t1, FIM_UPDATE_MOBLIN
+
+	#  Verifica se esta vivo
+	la 	t0, MOBLIN_VIVO
+	lb 	t1, 0(t0)
+	beq 	t1, zero, FIM_UPDATE_MOBLIN
+	
+	# Limpa o rastro
+	la 	t0, OLD_MOBLIN_POS 
+	lw 	a0, CURR_MAP_TILE 
+	lh 	a1, 0(t0) 
+	lh 	a2, 2(t0) 
+	mv 	a3, s0 			
+	
+	addi 	sp, sp, -4
+	sw 	t0, 0(sp)
+	call 	PRINT
+	lw 	t0, 0(sp)
+	addi 	sp, sp, 4
+    
+    	# Salva posicao velha
+    	la 	t0, MOBLIN_POS
+	lh 	t1, 0(t0) 		# X atual
+	lh 	t2, 2(t0) 		# Y atual
+	la 	t3, OLD_MOBLIN_POS
+	sh 	t1, 0(t3)
+	sh 	t2, 2(t3)
+	
+	# Timer do tiro
+	la 	t0, TIMER_TIRO_MOBLIN
+	lb 	t1, 0(t0)
+	
+	bne 	t1, zero, DEC_TIMER_TIRO # se nao for hora decrementa
+	
+	li 	t1, 100 		# Delay de tiro (100 frames)
+	sb 	t1, 0(t0) 		# Reinicia o timer
+	
+	# --- INICIA TIRO ---
+	call 	INICIAR_TIRO_PEDRA
+	j 	DESENHAR_MOBLIN
+
+DEC_TIMER_TIRO:
+	addi 	t1, t1, -1
+	sb 	t1, 0(t0)
+
+# ================================== #
+# Procedimento para desenhar moblin  #
+# ================================== #
+DESENHAR_MOBLIN:
+
+	la 	a0, moblin		
+	la 	t0, MOBLIN_POS
+	lh 	a1, 0(t0)
+	lh 	a2, 2(t0)
+	mv 	a3, s0
+	call 	PRINT
+
+FIM_UPDATE_MOBLIN:
+	lw 	ra, 0(sp)
+	addi 	sp, sp, 4
+	ret
+	
+# ============= #
+# INICIAR TIRO  #
+# ============= #
+INICIAR_TIRO_PEDRA:
+	# Salva ra
+	addi 	sp, sp, -4
+	sw 	ra, 0(sp)
+
+	# Checa se ja tem uma pedra atirada
+	la 	t0, STONE_ACTIVE
+	lb 	t1, 0(t0)
+	bne 	t1, zero, FIM_INICIAR_TIRO # Sai se a pedra ja foi atirada
+
+	# Carrega Posicao
+	la 	t2, MOBLIN_POS
+	lh 	t3, 0(t2) 		# Moblin X
+	lh 	t4, 2(t2) 		# Moblin Y
+	
+	la 	t5, CHAR_POS
+	lh 	t6, 0(t5) 		# Link X
+	lh 	t4, 2(t5) 		# Link Y
+
+	# Define Posicao Inicial da Pedra
+	la 	t0, STONE_POS
+	sh 	t3, 0(t0) 		# Stone X = Moblin X
+	sh 	t4, 2(t0) 		# Stone Y = Moblin Y
+
+	# 4. Calcula Vetor de Direcao 
+	# Subtrai (Link - Moblin) para obter o vetor direcional
+	sub 	t1, t6, t3 		# t1 = dX
+	sub 	t2, t4, t4 		# t2 = dY
+	
+	# Normaliza o vetor 
+	mv 	t5, t1 			# |dX|
+	bgez 	t1, SKIP_NEG_X
+	neg 	t5, t5
+SKIP_NEG_X:
+	mv 	t6, t2 			# |dY|
+	bgez 	t2, SKIP_NEG_Y
+	neg 	t6, t6
+SKIP_NEG_Y:
+	
+	# Encontra o maior componente
+	mv 	t4, t5 			
+	bge 	t5, t6, SKIP_SWAP
+	mv 	t4, t6
+SKIP_SWAP:
+	
+	# Para evitar divisao por zero (se Link estiver exatamente no Moblin)
+	beq 	t4, zero, FIM_INICIAR_TIRO
+	
+	# Define a velocidade de tiro (4 pixels por frame)
+	li 	t5, 4 			# Velocidade base
+	
+	# Multiplica dX e dY pela velocidade base e divide pelo maior componente
+	mul 	t1, t1, t5 		# dX * 4
+	div 	t1, t1, t4 		# (dX * 4) / Max(dX, dY)
+	mul 	t2, t2, t5 		# dY * 4
+	div 	t2, t2, t4 		# (dY * 4) / Max(dX, dY)
+
+	# Salva Velocidades 
+	la 	t0, STONE_VEL_X
+	sw 	t1, 0(t0) 		
+	la 	t0, STONE_VEL_Y
+	sw 	t2, 0(t0) 		
+
+	# Ativa a Pedra
+	la 	t0, STONE_ACTIVE
+	li 	t1, 1
+	sb 	t1, 0(t0)
+
+	# Lê a posição inicial (onde o Moblin está) e salva no histórico
+	la 	t0, STONE_POS
+	lw 	t1, 0(t0) 		# Lê X e Y de uma vez
+	
+	la 	t2, LAST_STONE_FRAME_0
+	sw 	t1, 0(t2)
+	la 	t2, LAST_STONE_FRAME_1
+	sw 	t1, 0(t2)
+
+FIM_INICIAR_TIRO:
+	lw 	ra, 0(sp)
+	addi 	sp, sp, 4
+	ret
+	
+# =========================== #
+# ATUALIZAR PEDRA (MOVIMENTO) #
+# =========================== #
+
+ATUALIZAR_PEDRA:
+	addi 	sp, sp, -4
+	sw 	ra, 0(sp)
+
+	# CHECK DE MAPA
+	lw 	t0, CURR_MAP_IMG
+	la 	t1, mapa3
+	bne 	t0, t1, FIM_UPDATE_PEDRA
+
+	# Verifica se está ativa
+	la 	t0, STONE_ACTIVE
+	lb 	t1, 0(t0)
+	beq 	t1, zero, FIM_UPDATE_PEDRA
+
+	# Verifica qual frame estamos desenhando (s0)
+	beq 	s0, zero, LIMPAR_FRAME_0
+	
+	# Se s0 == 1, usamos o histórico do Frame 1
+	la 	t0, LAST_STONE_FRAME_1
+	j 	DO_STONE_CLEAN
+
+LIMPAR_FRAME_0:
+	# Se s0 == 0, usamos o histórico do Frame 0
+	la 	t0, LAST_STONE_FRAME_0
+
+DO_STONE_CLEAN:
+	# t0 tem o endereço da coordenada antiga DESTE frame
+	lw 	a0, CURR_MAP_TILE 	# Tile de fundo
+	lh 	a1, 0(t0) 		# X antigo
+	lh 	a2, 2(t0) 		# Y antigo
+	mv 	a3, s0 			# Frame atual
+	
+	addi 	sp, sp, -4
+	sw 	t0, 0(sp)
+	call 	PRINT       # Limpa o rastro
+	lw 	t0, 0(sp)
+	addi 	sp, sp, 4
+
+	# Salva posicao atual
+	la 	t1, STONE_POS
+	lh 	t2, 0(t1) 		# X Atual
+	lh 	t3, 2(t1) 		# Y Atual
+	
+	sh 	t2, 0(t0) 		
+	sh 	t3, 2(t0) 		
+
+	# Calcula movimento
+	la 	t4, STONE_VEL_X
+	lw 	t5, 0(t4)
+	la 	t4, STONE_VEL_Y
+	lw 	t6, 0(t4)
+	
+	add 	t2, t2, t5 		# Novo X
+	add 	t3, t3, t6 		# Novo Y
+	
+	# Checa os limites do mapa
+	li 	t4, 16
+	blt 	t2, t4, PEDRA_FALHOU 	# Colidiu na esquerda
+	li 	t4, 288
+	bgt 	t2, t4, PEDRA_FALHOU 	# Coliidiu na direita
+	li 	t4, 48
+	blt 	t3, t4, PEDRA_FALHOU 	# Colidiu em cima 
+	li 	t4, 208
+	bgt 	t3, t4, PEDRA_FALHOU 	# Colidiu em baixo
+
+	# Só chega aqui se estiver DENTRO da tela
+	mv 	a1, t2 			# X teste
+	mv 	a2, t3 			# Y teste
+	srai 	t5, a1, 4       # Grid X
+	srai 	t6, a2, 4       # Grid Y
+	
+	addi 	sp, sp, -12
+	sw 	t1, 0(sp) 		# Endereço STONE_POS
+	sw 	t2, 4(sp) 		# Novo X
+	sw 	t3, 8(sp) 		# Novo Y
+	
+	jal 	CHECAR_COLISAO
+	
+	lw 	t3, 8(sp)
+	lw 	t2, 4(sp)
+	lw 	t1, 0(sp)
+	addi 	sp, sp, 12
+	
+	bne 	t5, zero, PEDRA_FALHOU 	# Bateu na parede -> Destrói
+	
+	# Atualiza posicao
+	sh 	t2, 0(t1) 		# Grava Novo X
+	sh 	t3, 2(t1) 		# Grava Novo Y
+
+	# Desenha a pedra
+	la 	a0, pedra
+	mv 	a1, t2
+	mv 	a2, t3
+	mv 	a3, s0
+	call 	PRINT
+
+	j 	FIM_UPDATE_PEDRA
+	
+PEDRA_FALHOU:
+    # Desativa a pedra
+    la  t0, STONE_ACTIVE
+    sb  zero, 0(t0)
+
+    # Apaga a pedra
+    la  t0, STONE_POS
+    lh  a1, 0(t0)       
+    lh  a2, 2(t0)       
+    lw  a0, CURR_MAP_TILE
+
+    addi sp, sp, -12
+    sw  a0, 0(sp)
+    sw  a1, 4(sp)
+    sw  a2, 8(sp)
+
+    li  a3, 0           
+    call PRINT
+
+    lw  a2, 8(sp)
+    lw  a1, 4(sp)
+    lw  a0, 0(sp)
+    addi sp, sp, 12
+
+    li  a3, 1           
+    call PRINT
+
+    j   FIM_UPDATE_PEDRA
+    
+FIM_UPDATE_PEDRA:
+	lw 	ra, 0(sp)
+	addi 	sp, sp, 4
+	ret
+	
+# ============================== #
+#   DANO DA PEDRA NO LINK        #
+# ============================== #
+CHECAR_DANO_PEDRA:
+	addi 	sp, sp, -4
+	sw 	ra, 0(sp)
+	
+	# Verifica se a pedra esta ativa
+	la 	t0, STONE_ACTIVE
+	lb 	t1, 0(t0)
+	beq 	t1, zero, FIM_DANO_PEDRA
+	
+	# Verifica Invencibilidade do Link (omite se invencível)
+	la 	t0, TIMER_INVUL
+	lb 	t1, 0(t0)
+	bne 	t1, zero, FIM_DANO_PEDRA
+	
+	# Carrega Posições (Link t1/t2, Pedra t4/t5)
+	la 	t0, CHAR_POS
+	lh 	t1, 0(t0) 		# Link X
+	lh 	t2, 2(t0) 		# Link Y
+	
+	la 	t3, STONE_POS
+	lh 	t4, 0(t3) 		# Pedra X
+	lh 	t5, 2(t3) 		# Pedra Y
+	
+	# Checagem de Colisão (Distância < 16)
+	
+	# X
+	sub 	t6, t1, t4
+	bgez 	t6, C_DX
+	neg 	t6, t6
+C_DX:
+	li 	a7, 16
+	bge 	t6, a7, FIM_DANO_PEDRA
+	
+	# Y
+	sub 	t6, t2, t5
+	bgez 	t6, C_DY
+	neg 	t6, t6
+C_DY:
+	li  a7, 16
+	bge t6, a7, FIM_DANO_PEDRA
+    
+    # Se teve colisao
+    
+    # Desativa Pedra
+	la  t0, STONE_ACTIVE
+	sb  zero, 0(t0)
+    
+    # Apaga a pedra
+	la  t0, STONE_POS
+	lh  a1, 0(t0)
+	lh  a2, 2(t0)
+   	lw  a0, CURR_MAP_TILE
+    
+	addi sp, sp, -12
+	sw  a0, 0(sp)
+	sw  a1, 4(sp)
+	sw  a2, 8(sp)
+    
+	li  a3, 0         
+	call PRINT
+    
+	lw  a2, 8(sp)
+	lw  a1, 4(sp)
+	lw  a0, 0(sp)
+	addi sp, sp, 12
+    
+	li  a3, 1        
+	call PRINT
+
+    # Logica de escudo
+	la t2, HAS_SHIELD
+	lb t5, 0(t2)
+	li t4, 1
+	beq t5, t4, SHIELD
+    
+    # Tira Vida
+	la  t3, VIDAS
+	lb  t6, 0(t3)
+	beq t6, zero, GAME_OVER
+    
+	addi t6, t6, -1
+	sb  t6, 0(t3)
+    
+    # Invencibilidade e Som
+	la  t3, TIMER_INVUL
+	li  t6, 60
+	sb  t6, 0(t3)
+    
+	li  a7, 31      # Som de Dano
+	li  a0, 50
+	li  a1, 100
+	li  a2, 11
+	li  a3, 100
+	ecall   
+	call ATUALIZAR_HUD
+
+FIM_DANO_PEDRA:
+	lw  ra, 0(sp)
+	addi sp, sp, 4
+	ret
+	
+# ======================== #
+# Ataque espada no moblin  #
+# ======================== #
+CHECAR_HIT_MOBLIN: 
+
+    addi sp, sp, -4
+    sw ra, 0(sp)
+
+    # Verifica se está atacando
+
+    la t0, TIMER_ATAQUE
+    lb t1, 0(t0)
+    beq t1, zero, FIM_HIT_MOBLIN
+
+   
+    # Carrega Mapa Atual
+
+    lw s11, CURR_MAP_IMG  # Usa s11 temporariamente (salve se precisar)
+
+    # VERIFICAR OCTOROK (MAPA 1)
+
+    la t1, mapa1
+    bne s11, t1, CHECK_MOBLIN_LOGIC # Se não for mapa1, pula pro Moblin
+    la t0, OCTOROK_VIVO
+    lb t1, 0(t0)
+    beq t1, zero, FIM_HIT_MOBLIN # Se Octorok morto, sai   
+
+    # Colisão Espada x Octorok
+    la t0, POS_ATAQUE
+    lh t1, 0(t0)
+    lh t2, 2(t0)
+    la t0, OCTOROK_POS
+    lh t3, 0(t0)
+    lh t4, 2(t0)
+
+    # Dist X
+    sub t5, t1, t3
+    bgez t5, ABS_DX_OCT
+    neg t5, t5
+
+ABS_DX_OCT:
+    li t6, 16
+    bge t5, t6, FIM_HIT_MOBLIN
+
+    # Dist Y
+    sub t5, t2, t4
+    bgez t5, ABS_DY_OCT
+    neg t5, t5
+
+ABS_DY_OCT:
+    li t6, 16
+    bge t5, t6, FIM_HIT_MOBLIN
+
+    # MATOU OCTOROK
+    la t0, OCTOROK_VIVO
+    sb zero, 0(t0)
+
+    # Spawn Drop Octorok
+    la t0, DROP_ACTIVE
+    li t1, 1
+    sw t1, 0(t0)
+    la t0, OCTOROK_POS
+    lh t1, 0(t0)
+    lh t2, 2(t0)
+    la t0, DROP_POS
+    sw t1, 0(t0)
+    sw t2, 4(t0)
+
+    
+
+    j FIM_HIT_MOBLIN # Terminou
+CHECK_MOBLIN_LOGIC:
+	la t1, mapa3
+	bne s11, t1, FIM_HIT_MOBLIN # Se não for mapa3, sai
+    
+	la t0, MOBLIN_VIVO
+	lb t1, 0(t0)
+	beq t1, zero, FIM_HIT_MOBLIN
+    
+    # Colisão Espada x Moblin
+	la t0, POS_ATAQUE
+	lh t1, 0(t0)
+	lh t2, 2(t0)
+	la t0, MOBLIN_POS
+	lh t3, 0(t0)
+	lh t4, 2(t0)
+    
+	sub t5, t1, t3
+	bgez t5, ABS_DX_MOB
+	neg t5, t5
+ABS_DX_MOB:
+	li t6, 16
+	bge t5, t6, FIM_HIT_MOBLIN
+    
+	sub t5, t2, t4
+	bgez t5, ABS_DY_MOB
+	neg t5, t5
+ABS_DY_MOB:
+	li t6, 16
+	bge t5, t6, FIM_HIT_MOBLIN
+    
+    # MATOU MOBLIN
+	la t0, MOBLIN_VIVO
+	sb zero, 0(t0)
+    
+    # Desativa pedra
+	la t0, STONE_ACTIVE
+	sb zero, 0(t0)
+   
+	la t0, DROP_ACTIVE
+	li t1, 1
+	sw t1, 0(t0)
+  
+   	la t0, MOBLIN_POS
+    	lh t1, 0(t0)
+    	lh t2, 2(t0)
+    	la t0, DROP_POS
+    	sw t1, 0(t0)
+    	sw t2, 4(t0)
+
+    # Apaga o Moblin
+    	la t0, MOBLIN_POS
+    	lw a0, CURR_MAP_TILE
+    	lh a1, 0(t0)
+    	lh a2, 2(t0)
+    
+    	addi sp, sp, -12
+    	sw a0, 0(sp)
+    	sw a1, 4(sp)
+    	sw a2, 8(sp)
+    	li a3, 0
+    	call PRINT
+    	lw a2, 8(sp)
+    	lw a1, 4(sp)
+    	lw a0, 0(sp)
+    	addi sp, sp, 12
+    	li a3, 1
+    	call PRINT
+
+FIM_HIT_MOBLIN:
+    	lw ra, 0(sp)
+    	addi sp, sp, 4
+    	ret
+    
+# Logica de morte
+GAME_OVER:
+	# Printa tela de game over
+    	la a0, gameover
+	li a1, 0
+	li a2, 0
+	li a3, 0
+	call PRINT			# imprime o sprite
+	li a3,1				# frame = 1
+	call PRINT			# imprime o sprite
+	LOOP_GAMEOVER:
+	
+	   li t1,0xFF200000		# carrega o endere o de controle do KDMMIO
+	   lw t0,0(t1)			# Le bit de Controle Teclado # endereco da flag tecla apertada 
+	   andi t0,t0,0x0001		# mascara o bit menos significativo
+	 					# (l? do endereco controle de teclado uma flag (0 = tecla apertada | 1 = tecla apertada)			
+	   beq t0,zero,LOOP_GAMEOVER
+ 	   lw t2,4(t1)			# le o valor da tecla (no endereco 0xFF200004) #endereco dos valores ASCII
+ 	
+	li t3, 27               # 27 é o código ASCII do ESC
+	beq t2, t3, SAIR_DO_JOGO
+
+	li t3, 10               # 10 é o código ASCII do ENTER (\n)
+	beq t2, t3, REINICIAR_JOGO
+	    
+	    # Se não for nenhum dos dois, continua esperando
+	j LOOP_GAMEOVER	
+	
+# Encerra o jogo
+SAIR_DO_JOGO:
+	li a7, 10
+	ecall
+	
+REINICIAR_JOGO:
+    # Resetar Link (Vida e Posição)
+    la t0, VIDAS
+    li t1, 3
+    sb t1, 0(t0)
+    
+    la t0, CHAR_POS
+    li t1, 64           # X inicial
+    li t2, 64           # Y inicial
+    sh t1, 0(t0)
+    sh t2, 2(t0)
+    
+    # Resetar OLD_POS também para não dar risco no rastro
+    la t0, OLD_CHAR_POS
+    sh t1, 0(t0)
+    sh t2, 2(t0)
+    
+    # Resetar Mapa (Volta pro Mapa 1)
+    la t0, CURR_MAP_IMG
+    la t1, mapa1
+    sw t1, 0(t0)
+    
+    la t0, CURR_MAP_COL
+    la t1, mapa1_colisao
+    sw t1, 0(t0)
+    
+    la t0, CURR_MAP_TILE
+    la t1, tile
+    sw t1, 0(t0)
+    
+    # Resetar Inventário e Loja
+   
+    la t0, HAS_SWORD
+    sb zero, 0(t0)
+    
+    la t0, HAS_KEY
+    sb zero, 0(t0)
+
+    la t0, HAS_SHIELD
+    sb zero, 0(t0)
+    
+    # Resetar Loja (Itens voltam a estar a venda)
+    la t0, SOLD_HEART
+    sb zero, 0(t0)
+    la t0, SOLD_SHIELD
+    sb zero, 0(t0)
+    la t0, SOLD_KEY
+    sb zero, 0(t0)
+    
+    # Resetar Inimigos
+    la t0, OCTOROK_VIVO
+    li t1, 1
+    sb t1, 0(t0)
+    
+    la t0, MOBLIN_VIVO
+    li t1, 1
+    sb t1, 0(t0)
+    
+    # Resetar posição do inimigo
+    la t0, OCTOROK_POS
+    li t1, 160
+    li t2, 144
+    sh t1, 0(t0)
+    sh t2, 2(t0)
+    
+    # Resetar Rupys
+    la t0, RUPY
+    li t1, 50          
+    sh t1, 0(t0)
+
+    j MAIN
